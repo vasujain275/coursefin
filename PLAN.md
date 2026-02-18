@@ -10,9 +10,20 @@
 ## 🚀 Current Progress
 
 **Current Version:** v0.0.0 (In Development)  
-**Sprint Status:** Sprint 0 - Foundation (In Progress)
+**Sprint Status:** Sprint 0 - Foundation (Complete) ✅
 
 ### ✅ Completed (Latest First)
+
+**February 18, 2026 - ESLint and Prettier Setup**
+- ✅ Installed Prettier 3.8.1 and ESLint TypeScript plugins
+- ✅ Configured ESLint with strict TypeScript rules
+- ✅ Added Prettier with 80 char line width, single quotes
+- ✅ Added lint and format scripts to package.json
+- ✅ Fixed all linting issues (floating promises, unused vars)
+- ✅ Formatted entire codebase with Prettier
+- ✅ Enabled strictNullChecks in all tsconfig files
+- ✅ All code passes `pnpm run lint` with zero warnings
+- 📦 **Commits:** `a554f34`, `27b4911`, `9d1ff7d` (pushed to main)
 
 **February 18, 2026 - Web Player Frontend Implementation**
 - ✅ Applied CourseFin Modern Tech theme (dark mode default, Blue 600 primary)
@@ -39,7 +50,7 @@
 - ✅ Updated documentation (COURSEFIN.md, ARCHITECTURE.md)
 - 📦 **Commits:** `17c726f`, `e45cdc2`, `91aa7eb`, `b13fc21`, `10dabca`, `f2982ad`
 
-**Sprint 0 - Foundation (Partial)**
+**Sprint 0 - Foundation (Complete) ✅**
 - ✅ Project structure initialized
 - ✅ Database schema designed and implemented
 - ✅ SQLite integration with SQLC
@@ -47,15 +58,21 @@
 - ✅ React + TypeScript + Vite frontend
 - ✅ Tailwind CSS v4 configured
 - ✅ pnpm package manager setup
+- ✅ ESLint and Prettier configured with strict rules
 - ⚠️ MPV integration **DEPRECATED** - Migrated to web player
 
 ### 🎯 Current Focus
 
-**Next Up: Library View Components (Phase 3)**
+**Next Sprint: Sprint 1 - MVP Core (Library UI & Course Import)**
 - CourseCard component (16:9 poster, progress bar)
 - CourseGrid component (responsive layout)
 - LibraryView component (main library page)
 - EmptyLibrary component (empty state)
+- CourseDetail component (sections/lectures)
+- LectureList component (collapsible sections)
+- Zustand state management setup
+- Course import service
+- Folder scanning and metadata extraction
 - CourseDetail component (sections/lectures)
 - LectureList component (collapsible sections)
 - Zustand state management setup
@@ -211,7 +228,7 @@ v1.0.0 (Sprint 10) → Release 🚀
 **🎯 Goal:** Set up project infrastructure, development environment, and implement web player backend/frontend.
 
 **📦 Target Version:** v0.0.0 (Development Setup)  
-**Status:** 🟢 95% Complete (Player done, awaiting library UI)
+**Status:** 🟢 100% Complete
 
 ### Project Structure
 
@@ -222,7 +239,7 @@ v1.0.0 (Sprint 10) → Release 🚀
 - [x] Set up pnpm workspace and package.json
 - [x] Configure TypeScript with strict mode and path aliases
 - [x] Create directory structure per STYLE-GUIDE.md (feature-based)
-- [ ] Set up ESLint + Prettier with strict rules
+- [x] Set up ESLint + Prettier with strict rules
 - [x] Configure Git repository with .gitignore
 
 ### Database Setup
