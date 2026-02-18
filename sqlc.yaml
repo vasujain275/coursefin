@@ -1,0 +1,55 @@
+# ============================================================================
+# sqlc Configuration - CourseFin
+# ============================================================================
+# Purpose: Generate type-safe Go code from SQL queries
+# Documentation: https://docs.sqlc.dev/en/latest/reference/config.html
+# ============================================================================
+
+version: "2"
+
+sql:
+  - engine: "sqlite"
+    # Where to find SQL query files
+    queries: "queries/"
+    
+    # Where to find schema migrations (for understanding table structures)
+    schema: "migrations/"
+    
+    # Code generation settings
+    gen:
+      go:
+        # Output package name
+        package: "sqlc"
+        
+        # Output directory for generated code
+        out: "internal/sqlc"
+        
+        # Use database/sql standard library (not pgx since we're using SQLite)
+        sql_package: "database/sql"
+        
+        # Code generation options
+        emit_json_tags: true              # Add `json:"field_name"` tags to structs
+        emit_interface: true              # Generate Querier interface (critical for testing!)
+        emit_empty_slices: true           # Return []Type instead of nil for empty results
+        emit_pointers_for_null_types: true # Use *string for nullable TEXT fields
+        emit_result_struct_pointers: true # Return pointers from query methods
+        emit_enum_valid_method: false     # Skip enum validation methods (using CHECK constraints)
+        emit_all_enum_values: false       # Skip enum value constants
+        
+        # Naming conventions
+        output_models_file_name: "models.go"    # All struct definitions in one file
+        output_querier_file_name: "querier.go"  # Interface definition
+        
+        # Type overrides for better Go types
+        overrides:
+          # SQLite BOOLEAN → Go bool (not int)
+          - db_type: "boolean"
+            go_type: "bool"
+          
+          # SQLite DATETIME → Go time.Time
+          - db_type: "datetime"
+            go_type: "time.Time"
+          
+          # SQLite INTEGER (duration/position) → Go int64 for large values
+          - db_type: "integer"
+            go_type: "int64"
