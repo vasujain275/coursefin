@@ -376,7 +376,6 @@ CREATE TABLE IF NOT EXISTS notes (
 --   - theme: "light" | "dark" | "system"
 --   - default_playback_speed: 1.0, 1.25, 1.5, 2.0
 --   - auto_mark_complete_threshold: 0.90 (90% watched = complete)
---   - mpv_path: Custom MPV binary path (optional)
 --   - subtitle_language_preference: "en_US,es_ES" (comma-separated priority)
 -- ============================================================================
 
@@ -455,8 +454,6 @@ INSERT INTO app_settings (key, value) VALUES
     ('auto_play_next', 'true'),                       -- Auto-play next lecture after completion
     ('resume_prompt', 'true'),                        -- Ask before resuming (vs auto-resume)
     ('thumbnail_cache_enabled', 'true'),              -- Cache Udemy thumbnails locally
-    ('scan_on_startup', 'false'),                     -- Don't auto-scan library on startup (performance)
-    ('mpv_hwdec', 'auto'),                            -- MPV hardware decoding (auto/no/yes)
-    ('mpv_volume', '100');                            -- Default volume (0-100)
+    ('scan_on_startup', 'false');                     -- Don't auto-scan library on startup (performance)
 
 -- +goose StatementEnd

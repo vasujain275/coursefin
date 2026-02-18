@@ -1,7 +1,7 @@
 // ============================================================================
 // Package progress - Video Progress Tracking Service
 // ============================================================================
-// Purpose: Bridge between MPV player and database for progress tracking
+// Purpose: Bridge between web player and database for progress tracking
 // Features:
 //   - Auto-save progress every 5 seconds during playback
 //   - Auto-mark lectures complete at 90% threshold
@@ -18,14 +18,12 @@ import (
 	"time"
 
 	"coursefin/internal/database"
-	"coursefin/internal/mpv"
 	"coursefin/internal/sqlc"
 )
 
 // Tracker manages progress tracking for video playback
 type Tracker struct {
 	db                *database.DB
-	player            *mpv.Player
 	ctx               context.Context
 	cancel            context.CancelFunc
 	currentLectureID  int64
@@ -36,10 +34,9 @@ type Tracker struct {
 }
 
 // NewTracker creates a new progress tracker
-func NewTracker(db *database.DB, player *mpv.Player) *Tracker {
+func NewTracker(db *database.DB) *Tracker {
 	return &Tracker{
 		db:                db,
-		player:            player,
 		completionPercent: 0.90, // 90% threshold for auto-complete
 		saveInterval:      5 * time.Second,
 	}
@@ -141,53 +138,60 @@ func (t *Tracker) trackLoop() {
 		case <-t.ctx.Done():
 			return
 		case <-ticker.C:
-			t.mu.Lock()
-			if t.tracking && t.player.IsRunning() {
-				t.saveCurrentProgress()
-			}
-			t.mu.Unlock()
+			// TODO: Implement web player progress tracking
+			// For now, tracking is disabled until web player is integrated
+			// t.mu.Lock()
+			// if t.tracking {
+			// 	t.saveCurrentProgress()
+			// }
+			// t.mu.Unlock()
 		}
 	}
 }
 
 // saveCurrentProgress saves the current playback state to database
 func (t *Tracker) saveCurrentProgress() error {
-	if !t.player.IsRunning() {
-		return nil
-	}
+	// TODO: Implement web player progress tracking
+	// This will be called from frontend with position/duration
+	return nil
 
-	// Get current playback state
-	position, err := t.player.GetPosition()
-	if err != nil {
-		return fmt.Errorf("failed to get position: %w", err)
-	}
-
-	duration, err := t.player.GetDuration()
-	if err != nil {
-		return fmt.Errorf("failed to get duration: %w", err)
-	}
-
-	// Calculate if lecture should be marked complete
-	completed := (position / duration) >= t.completionPercent
-
-	// Get lecture info to find course_id
-	lecture, err := t.db.Queries().GetLectureByID(t.ctx, t.currentLectureID)
-	if err != nil {
-		return fmt.Errorf("failed to get lecture: %w", err)
-	}
-
-	// Upsert progress record
-	_, err = t.db.Queries().UpsertProgress(t.ctx, sqlc.UpsertProgressParams{
-		LectureID:       t.currentLectureID,
-		CourseID:        lecture.CourseID,
-		WatchedDuration: func() *int64 { v := int64(position); return &v }(),
-		TotalDuration:   func() *int64 { v := int64(duration); return &v }(),
-		LastPosition:    func() *int64 { v := int64(position); return &v }(),
-		Completed:       &completed,
-		LastWatchedAt:   func() *time.Time { t := time.Now(); return &t }(),
-	})
-
-	return err
+	// Original MPV-based implementation (commented out for now):
+	// if !t.player.IsRunning() {
+	// 	return nil
+	// }
+	//
+	// // Get current playback state
+	// position, err := t.player.GetPosition()
+	// if err != nil {
+	// 	return fmt.Errorf("failed to get position: %w", err)
+	// }
+	//
+	// duration, err := t.player.GetDuration()
+	// if err != nil {
+	// 	return fmt.Errorf("failed to get duration: %w", err)
+	// }
+	//
+	// // Calculate if lecture should be marked complete
+	// completed := (position / duration) >= t.completionPercent
+	//
+	// // Get lecture info to find course_id
+	// lecture, err := t.db.Queries().GetLectureByID(t.ctx, t.currentLectureID)
+	// if err != nil {
+	// 	return fmt.Errorf("failed to get lecture: %w", err)
+	// }
+	//
+	// // Upsert progress record
+	// _, err = t.db.Queries().UpsertProgress(t.ctx, sqlc.UpsertProgressParams{
+	// 	LectureID:       t.currentLectureID,
+	// 	CourseID:        lecture.CourseID,
+	// 	WatchedDuration: func() *int64 { v := int64(position); return &v }(),
+	// 	TotalDuration:   func() *int64 { v := int64(duration); return &v }(),
+	// 	LastPosition:    func() *int64 { v := int64(position); return &v }(),
+	// 	Completed:       &completed,
+	// 	LastWatchedAt:   func() *time.Time { t := time.Now(); return &t }(),
+	// })
+	//
+	// return err
 }
 
 // recordStartWatching updates watch statistics when lecture starts
