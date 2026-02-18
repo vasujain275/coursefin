@@ -177,9 +177,9 @@ coursefin/
 │   │   └── dto.go                    # Data Transfer Objects for Wails
 │   │
 │   ├── player/                       # Video player feature
-│   │   ├── service.go                # PlayerService (orchestrates MPV)
-│   │   ├── mpv.go                    # MPV controller (IPC communication)
-│   │   ├── extractor.go              # MPV binary extraction
+│   │   ├── service.go                # PlayerService (video URL generation)
+│   │   ├── video_handler.go          # Video serving with range requests
+│   │   ├── progress.go               # Progress tracking integration
 │   │   └── dto.go                    # Player DTOs
 │   │
 │   ├── progress/                     # Progress tracking feature
@@ -209,11 +209,6 @@ coursefin/
 │       ├── database.go               # Database connection & goose runner
 │       ├── paths.go                  # Platform-specific paths
 │       └── logger.go                 # Logging utilities
-│
-├── binaries/                         # Embedded MPV binaries
-│   ├── mpv-linux                     # Linux MPV binary
-│   ├── mpv.exe                       # Windows MPV binary
-│   └── mpv-darwin                    # macOS MPV binary
 │
 └── frontend/                         # React frontend (see STYLE-GUIDE.md)
     └── ...
@@ -405,7 +400,6 @@ func (s *Service) ImportCourse(ctx context.Context, folderPath, udemyURL string)
 - Migration runner
 - Platform-specific paths (app data directory)
 - Logging setup
-- MPV binary extraction
 
 ### 5.5 Wails App Layer (`app.go`)
 

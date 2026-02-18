@@ -31,11 +31,11 @@ When reading this specification or generating code, remember:
 CourseFin is a **native desktop application** that provides a beautiful, Jellyfin-inspired interface for managing and viewing locally downloaded Udemy courses. Built with **Wails v2.11.0** (Go + React), it transforms scattered course files into an organized, Netflix-like learning experience with progress tracking, metadata management, and a powerful media player.
 
 ### 1.2 Goals
-- **Single Binary Distribution**: No external dependencies required (MPV bundled)
+- **Single Binary Distribution**: No external dependencies required
 - **Cross-Platform**: Works seamlessly on Linux, Windows, and macOS
 - **Minimal & Elegant**: Jellyfin-inspired UI with clean, modern design
 - **Fully Local**: No cloud dependencies, all data stored locally in SQLite
-- **Professional Playback**: High-quality video playback with MPV integration
+- **Professional Playback**: High-quality video playback with modern web player
 - **Smart Metadata**: Automatic course information fetching from Udemy
 
 ### 1.3 Target Users
@@ -71,7 +71,7 @@ CourseFin is a **native desktop application** that provides a beautiful, Jellyfi
   - **Service Layer**: Domain-driven services (CourseService, PlayerService, etc.)
   - **Dependency Injection**: Manual DI with constructor functions
 - **Database**: SQLite with modernc.org/sqlite (pure Go, no CGO)
-- **Video Player**: MPV (bundled binary + IPC control)
+- **Video Player**: Plyr.js web player with native HTML5 video
 - **Web Scraping**: goquery for Udemy metadata extraction
 - **HTTP Client**: Go standard library net/http
 
@@ -123,11 +123,11 @@ CourseFin is a **native desktop application** that provides a beautiful, Jellyfi
 **Important**: DO NOT use `fetch()`, `axios`, or HTTP requests for backend communication. Always use Wails bindings.
 
 ### 2.5 Video Player Integration
-- **Player**: MPV (bundled with application)
-- **Communication**: IPC socket (JSON-based commands)
-- **Video Formats**: MP4, MKV, WebM, AVI (common formats)
-- **Subtitle Support**: SRT, VTT, ASS
-- **Bundling Strategy**: Platform-specific MPV binaries embedded in build, extracted on first run
+- **Player**: Plyr.js (modern HTML5 video player)
+- **Communication**: Direct video serving via Wails AssetServer with range request support
+- **Video Formats**: MP4 (H.264/AAC - browser-native formats)
+- **Subtitle Support**: VTT, SRT (converted to WebVTT)
+- **Implementation**: Videos served at `/videos/{course_id}/{lecture_id}.mp4` with `http.ServeContent` for seeking support
 
 ---
 
@@ -143,12 +143,12 @@ CourseFin Desktop App
 ├── Backend (Go)
 │   ├── Course Service (import, metadata, scan)
 │   ├── Database Service (SQLite operations)
-│   ├── Player Service (MPV IPC control)
+│   ├── Player Service (video serving, progress tracking)
 │   ├── Scraper Service (Udemy metadata)
 │   └── Settings Service (app configuration)
 └── Data Layer
     ├── SQLite Database
-    ├── MPV Binary (bundled)
+    ├── Web Player (Plyr.js)
     └── User Files (courses directory)
 ```
 
@@ -175,10 +175,10 @@ CourseFin Desktop App
    - Data export/backup
 
 3. **PlayerService**
-   - Launch MPV subprocess with IPC
-   - Send playback commands (play, pause, seek)
-   - Monitor playback position
-   - Handle player events
+   - Serve videos via AssetServer with range request support
+   - Generate video URLs for frontend player
+   - Track playback progress from frontend events
+   - Handle subtitle file serving
 
 4. **ScraperService**
    - Extract metadata from Udemy URL
@@ -369,7 +369,6 @@ INSERT INTO app_settings (key, value) VALUES
     ('theme', 'dark'),
     ('default_playback_speed', '1.0'),
     ('auto_mark_complete_threshold', '90'),  -- 90% watched = complete
-    ('mpv_path', ''),
     ('first_run', 'true');
 ```
 
@@ -383,19 +382,16 @@ INSERT INTO app_settings (key, value) VALUES
 1. First launch: Welcome screen
 2. User selects courses library directory (where all courses are stored)
 3. App saves path to settings
-4. App initializes MPV binary (extracts from bundle if needed)
+4. App is ready to import courses
 
 **Technical Implementation:**
 - Use Wails runtime for native folder selection dialog
 - Store configuration in `app_settings` table
 - Validate directory permissions
-- Extract bundled MPV binary to app data directory
-- Verify MPV executable works
 
 **UI Components:**
 - Welcome screen with setup wizard
 - Folder selection button
-- Progress indicator for MPV extraction
 - Success confirmation
 
 ### 5.2 Course Import
@@ -558,53 +554,52 @@ INSERT INTO app_settings (key, value) VALUES
 
 **Technical Implementation:**
 
-**MPV Integration:**
-1. **Initialization:**
-   - Start MPV process with IPC enabled:
-     ```bash
-     mpv --input-ipc-server=/tmp/coursefin-mpv-socket --idle --force-window video.mp4
-     ```
-   - Connect to IPC socket (Unix socket or named pipe on Windows)
-   - Send JSON commands over socket
-
+**Web Player Integration:**
+1. **Video Serving:**
+   - Videos served via Wails AssetServer at `/videos/{course_id}/{lecture_id}.mp4`
+   - Custom handler using `http.ServeContent` for range request support (enables seeking)
+   - Subtitles served at `/subtitles/{subtitle_id}` as WebVTT
+   
 2. **Playback Control:**
-   - Play/Pause: `{"command": ["set_property", "pause", false]}`
-   - Seek: `{"command": ["seek", 30, "relative"]}`
-   - Volume: `{"command": ["set_property", "volume", 50]}`
-   - Get position: `{"command": ["get_property", "time-pos"]}`
+   - HTML5 `<video>` element with Plyr.js player library
+   - Native browser controls for play/pause, seek, volume
+   - Plyr provides consistent UI across browsers
+   - Playback speed control (0.5x, 1x, 1.25x, 1.5x, 2x)
 
 3. **Progress Tracking:**
-   - Poll playback position every 5 seconds
-   - Update `progress` table with current position
+   - Frontend sends `timeupdate` events to backend every 5 seconds (debounced)
+   - Backend updates `progress` table with current position
    - Mark as complete when position > 90% of duration
-   - Save on pause, seek, or player close
+   - Save on pause, seek, or navigation away
 
 4. **Event Handling:**
-   - Listen for MPV property changes
-   - Handle file-loaded, playback-restart, end-file events
-   - Auto-play next lecture on completion (optional)
+   - `loadedmetadata` - Get video duration
+   - `timeupdate` - Track playback position
+   - `ended` - Auto-play next lecture (optional)
+   - `error` - Handle video loading errors
 
 **UI Components:**
-- Video container (MPV window embedded or separate)
-- Custom controls overlay:
-  - Play/pause button
-  - Timeline scrubber
-  - Current time / Total time
-  - Volume slider
-  - Fullscreen button
-  - Next/Previous lecture buttons
+- Plyr video player container with native controls
+- Custom lecture navigation:
+  - Play/pause button (via Plyr)
+  - Timeline scrubber (via Plyr)
+  - Current time / Total time (via Plyr)
+  - Volume slider (via Plyr)
+  - Fullscreen button (via Plyr)
+  - Next/Previous lecture buttons (custom)
 - Lecture title display
 - Section/course navigation sidebar
-- Keyboard shortcuts info
+- Keyboard shortcuts (built into Plyr)
 
 **Keyboard Shortcuts (MVP):**
 - Space: Play/Pause
-- Left/Right Arrow: Seek ±10 seconds
-- Up/Down Arrow: Volume ±5%
+- Left/Right Arrow: Seek ±5 seconds
+- Up/Down Arrow: Volume ±10%
 - F: Fullscreen
-- N: Next lecture
-- P: Previous lecture
-- Esc: Exit fullscreen or close player
+- M: Mute/Unmute
+- 0-9: Seek to 0%-90% of video
+- N: Next lecture (custom)
+- P: Previous lecture (custom)
 
 ### 5.6 Progress Tracking
 
@@ -630,7 +625,7 @@ INSERT INTO app_settings (key, value) VALUES
 
 2. **Resume Playback:**
    - Query last_position for lecture
-   - Start MPV at that position
+   - Frontend player seeks to that position on load
    - Show "Resume from X:XX" option
 
 3. **Course Progress Calculation:**
@@ -713,13 +708,12 @@ INSERT INTO app_settings (key, value) VALUES
    - Create schema
    - Migration system
    - Basic CRUD operations
-6. MPV binary bundling system:
-   - Download MPV binaries for each platform
-   - Embed in Go binary or package with app
-   - Extract to app data directory
-   - Test MPV IPC communication
+6. Set up video serving infrastructure:
+   - AssetServer configuration
+   - Custom video handler for range requests
+   - Test video playback
 
-**Deliverable:** Basic app shell with database and MPV working
+**Deliverable:** Basic app shell with database and video serving working
 
 ### Phase 2: Course Management (Weeks 3-4)
 **Goal:** Import and display courses
@@ -759,23 +753,23 @@ INSERT INTO app_settings (key, value) VALUES
 
 **Tasks:**
 1. Implement PlayerService:
-   - MPV process management
-   - IPC communication
-   - Command sending
-   - Event handling
-   - Progress polling
+   - Video serving with range requests
+   - URL generation for videos
+   - Progress tracking from frontend
+   - Subtitle file serving
 2. Build Player View UI:
+   - Plyr.js integration
    - Video container
-   - Custom controls
-   - Timeline scrubber
    - Lecture navigation
+   - Custom controls overlay
 3. Implement progress tracking:
-   - Save position periodically
+   - Frontend sends timeupdate events
+   - Backend saves position periodically
    - Mark as complete logic
    - Resume functionality
-4. Keyboard shortcuts
+4. Keyboard shortcuts (via Plyr)
 5. Next/Previous lecture navigation
-6. Error handling (missing files, MPV crashes)
+6. Error handling (missing files, video load errors)
 
 **Deliverable:** Fully functional video player with progress tracking
 
@@ -815,75 +809,7 @@ INSERT INTO app_settings (key, value) VALUES
 
 ## 8. Technical Challenges & Solutions
 
-### 8.1 MPV Binary Distribution
-
-**Challenge:** Bundling MPV without requiring users to install it
-
-**Solutions:**
-1. **Option A: Embed and Extract (Recommended)**
-   - Embed platform-specific MPV binaries in Go using `//go:embed`
-   - On first run, extract to app data directory
-   - Pros: True single binary, easy distribution
-   - Cons: Larger binary size (~50-100MB)
-
-2. **Option B: Separate Download**
-   - Download MPV on first run from GitHub releases
-   - Pros: Smaller initial binary
-   - Cons: Requires internet on first run, more complex
-
-**Implementation:**
-```go
-//go:embed binaries/mpv-linux binaries/mpv.exe binaries/mpv-darwin
-var mpvBinaries embed.FS
-
-func ExtractMPV() error {
-    appDir := GetAppDataDir()
-    mpvPath := filepath.Join(appDir, "mpv", GetMPVBinaryName())
-    
-    if _, err := os.Stat(mpvPath); err == nil {
-        return nil // Already extracted
-    }
-    
-    data, _ := mpvBinaries.ReadFile("binaries/" + GetMPVBinaryName())
-    os.MkdirAll(filepath.Dir(mpvPath), 0755)
-    os.WriteFile(mpvPath, data, 0755)
-    return nil
-}
-```
-
-### 8.2 MPV IPC Communication
-
-**Challenge:** Controlling MPV from Go
-
-**Solution:**
-- Use Unix sockets (Linux/macOS) or named pipes (Windows)
-- JSON-RPC protocol
-- Create wrapper library for common commands
-
-**Example:**
-```go
-type MPVController struct {
-    conn net.Conn
-}
-
-func (m *MPVController) SendCommand(cmd []interface{}) error {
-    payload := map[string]interface{}{"command": cmd}
-    data, _ := json.Marshal(payload)
-    _, err := m.conn.Write(append(data, '\n'))
-    return err
-}
-
-func (m *MPVController) Play() error {
-    return m.SendCommand([]interface{}{"set_property", "pause", false})
-}
-
-func (m *MPVController) GetPosition() (float64, error) {
-    m.SendCommand([]interface{}{"get_property", "time-pos"})
-    // Parse response...
-}
-```
-
-### 8.3 Udemy Scraping Reliability
+### 8.1 Udemy Scraping Reliability
 
 **Challenge:** Web scraping can break with site changes
 
@@ -902,7 +828,7 @@ func (m *MPVController) GetPosition() (float64, error) {
 4. Store whatever data is available
 ```
 
-### 8.4 Large Video Libraries Performance
+### 8.2 Large Video Libraries Performance
 
 **Challenge:** Thousands of courses could slow down the app
 
@@ -1000,8 +926,8 @@ coursefin/
 │   │
 │   ├── player/                       # Player feature module
 │   │   ├── service.go                # PlayerService
-│   │   ├── mpv.go                    # MPV IPC controller
-│   │   └── extractor.go              # Binary extraction
+│   │   ├── video_handler.go          # Video serving handler
+│   │   └── progress.go               # Progress tracking
 │   │
 │   ├── progress/                     # Progress tracking
 │   │   ├── repository.go
@@ -1025,11 +951,6 @@ coursefin/
 │       ├── database.go               # DB connection, migrations
 │       ├── paths.go                  # Platform-specific paths
 │       └── logger.go
-│
-├── binaries/                         # Embedded MPV binaries
-│   ├── mpv-linux
-│   ├── mpv.exe
-│   └── mpv-darwin
 │
 ├── frontend/
 │   ├── src/
@@ -1231,7 +1152,7 @@ go install github.com/pressly/goose/v3/cmd/goose@latest
 - Cross-platform builds working on Linux, Windows, macOS
 - No data loss (progress persisted correctly)
 - Startup time < 3 seconds
-- Single binary distribution (with bundled MPV)
+- Single binary distribution
 
 ### 13.2 User Experience Goals
 - Intuitive first-run setup (< 2 minutes)
@@ -1273,18 +1194,18 @@ go install github.com/pressly/goose/v3/cmd/goose@latest
 ### 15.1 Similar Projects
 - **Jellyfin**: Media server (UI inspiration)
 - **Plex**: Media organization
-- **MPV**: Video player
+- **Plyr**: Web video player
 - **Stash**: Media library manager
 
 ### 15.2 Technologies
 - **Wails**: https://wails.io
-- **MPV**: https://mpv.io
+- **Plyr.js**: https://plyr.io
 - **shadcn/ui**: https://ui.shadcn.com
 - **Tailwind CSS**: https://tailwindcss.com
 
 ### 15.3 Resources
 - **Wails Documentation**: https://wails.io/docs/introduction
-- **MPV IPC Documentation**: https://mpv.io/manual/master/#json-ipc
+- **Plyr Documentation**: https://github.com/sampotts/plyr
 - **SQLite Documentation**: https://www.sqlite.org/docs.html
 - **React Documentation**: https://react.dev
 
@@ -1378,7 +1299,6 @@ interface AppSettings {
   theme: 'dark' | 'light' | 'system';
   defaultPlaybackSpeed: number;
   autoMarkCompleteThreshold: number;
-  mpvPath: string;
   firstRun: boolean;
 }
 ```
@@ -1400,13 +1320,10 @@ func (s *CourseService) ScanCourseFolder(path string) (*CourseStructure, error)
 // Player Service
 type PlayerService struct {}
 
-func (s *PlayerService) PlayLecture(lectureID int) error
-func (s *PlayerService) Pause() error
-func (s *PlayerService) Resume() error
-func (s *PlayerService) Seek(seconds int) error
-func (s *PlayerService) SetVolume(volume int) error
-func (s *PlayerService) GetPlaybackState() (*PlaybackState, error)
-func (s *PlayerService) Stop() error
+func (s *PlayerService) GetVideoURL(lectureID int) (string, error)
+func (s *PlayerService) GetSubtitleURL(subtitleID int) (string, error)
+func (s *PlayerService) UpdatePlaybackProgress(lectureID int, position float64, duration float64) error
+func (s *PlayerService) GetResumePosition(lectureID int) (float64, error)
 
 // Progress Service
 type ProgressService struct {}
