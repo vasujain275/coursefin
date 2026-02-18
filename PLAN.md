@@ -7,6 +7,69 @@
 
 ---
 
+## 🚀 Current Progress
+
+**Current Version:** v0.0.0 (In Development)  
+**Sprint Status:** Sprint 0 - Foundation (In Progress)
+
+### ✅ Completed (Latest First)
+
+**February 18, 2026 - Web Player Frontend Implementation**
+- ✅ Applied CourseFin Modern Tech theme (dark mode default, Blue 600 primary)
+- ✅ Added Plyr.js video player dependencies (plyr@3.8.4, plyr-react@5.3.0)
+- ✅ Created VideoPlayer component with full Plyr integration
+- ✅ Implemented progress tracking (saves every 5 seconds)
+- ✅ Added resume position support
+- ✅ Created lecture navigation (Next/Previous with keyboard shortcuts)
+- ✅ Added subtitle support (WebVTT with automatic SRT conversion)
+- ✅ Fixed TypeScript configuration for Wails bindings
+- ✅ Verified successful build with `wails build -tags webkit2_41`
+- 📦 **Commits:** `fadbefe`, `8cd3b27`, `daeeafa` (pushed to main)
+
+**February 18, 2026 - Web Player Backend Migration**
+- ✅ Removed MPV player dependencies and external player approach
+- ✅ Created video handler service (internal/player/video_handler.go)
+- ✅ Implemented HTTP range request support for video streaming
+- ✅ Added SRT to WebVTT subtitle conversion
+- ✅ Created player service with business logic (internal/player/service.go)
+- ✅ Integrated player with Wails AssetServer
+- ✅ Updated app.go to implement http.Handler interface
+- ✅ Updated Wails bindings for player methods
+- ✅ Updated Go dependencies
+- ✅ Updated documentation (COURSEFIN.md, ARCHITECTURE.md)
+- 📦 **Commits:** `17c726f`, `e45cdc2`, `91aa7eb`, `b13fc21`, `10dabca`, `f2982ad`
+
+**Sprint 0 - Foundation (Partial)**
+- ✅ Project structure initialized
+- ✅ Database schema designed and implemented
+- ✅ SQLite integration with SQLC
+- ✅ Wails v2.11.0 setup
+- ✅ React + TypeScript + Vite frontend
+- ✅ Tailwind CSS v4 configured
+- ✅ pnpm package manager setup
+- ⚠️ MPV integration **DEPRECATED** - Migrated to web player
+
+### 🎯 Current Focus
+
+**Next Up: Library View Components (Phase 3)**
+- CourseCard component (16:9 poster, progress bar)
+- CourseGrid component (responsive layout)
+- LibraryView component (main library page)
+- EmptyLibrary component (empty state)
+- CourseDetail component (sections/lectures)
+- LectureList component (collapsible sections)
+- Zustand state management setup
+
+### 📋 Architecture Changes
+
+**MPV to Web Player Migration** (February 18, 2026)
+- **Reason:** Better integration, simpler cross-platform support, embedded UI
+- **Old Approach:** External MPV process with IPC communication
+- **New Approach:** Embedded HTML5 player (Plyr.js) with HTTP video streaming
+- **Impact:** Simplified architecture, better user experience, no external dependencies
+
+---
+
 ## 📋 Table of Contents
 
 1. [Project Overview](#project-overview)
@@ -32,11 +95,13 @@
 **CourseFin** is a native desktop application built with Wails that provides a Jellyfin-inspired interface for managing and viewing locally downloaded Udemy courses. The application features:
 
 - 🎯 **Udemy Course Management** with automatic metadata scraping
-- 🎬 **Powerful MPV-based Video Player** with resume functionality
+- 🎬 **Embedded Web Video Player** (Plyr.js) with resume functionality
 - 📊 **Progress Tracking & Analytics** for learning insights
 - 🎨 **Modern UI** with React + TypeScript + Tailwind CSS + shadcn/ui
 - 💾 **Local SQLite Database** for course and progress data
 - 🖥️ **Cross-Platform** support (Linux, Windows, macOS)
+
+> **Note:** Originally planned with external MPV player, migrated to embedded web player (Plyr.js) for better integration and user experience.
 
 ### Target Users
 - Students with downloaded Udemy courses
@@ -47,7 +112,7 @@
 - **Backend:** Go 1.23+ with Wails v2.11.0
 - **Frontend:** React 18.3+ with TypeScript, Tailwind CSS v4, shadcn/ui
 - **Database:** SQLite (pure Go driver)
-- **Video Player:** MPV (bundled binary)
+- **Video Player:** Plyr.js (HTML5 web player, embedded)
 - **Package Manager:** pnpm
 
 ---
@@ -95,40 +160,41 @@ For a sprint to be considered complete, all of the following must be satisfied:
 ## Version Roadmap
 
 ```
-v0.0.0 (Sprint 0)  →  Foundation & Setup
-                       ├─ Project structure
-                       ├─ Database setup
-                       └─ MPV bundling solution
+v0.0.0 (Sprint 0)  →  Foundation & Setup ✅ (95% Complete)
+                       ├─ Project structure ✅
+                       ├─ Database setup ✅
+                       ├─ Web player backend ✅
+                       └─ Web player frontend ✅
                        
-v0.1.0 (Sprint 1)  →  MVP Release ⭐
+v0.1.0 (Sprint 1)  →  MVP Release ⭐ (Next)
                        ├─ Course import with metadata
                        ├─ Basic library grid view
-                       ├─ MPV player integration
-                       ├─ Progress tracking & resume
-                       └─ Sections/lectures navigation
+                       ├─ Web player integration ✅ (Early completion)
+                       ├─ Progress tracking & resume ✅ (Early completion)
+                       └─ Sections/lectures navigation (Partial - navigation buttons done)
                        
 v0.2.0 (Sprint 2)  →  UI Enhancement
                        ├─ Jellyfin-style library grid
                        ├─ Course detail view polish
                        └─ Loading/error states
                        
-v0.3.0 (Sprint 3)  →  Player Polish
-                       ├─ Enhanced player controls
-                       ├─ Next/previous navigation
-                       └─ Fullscreen support
+v0.3.0 (Sprint 3)  →  Player Polish (Partially done early)
+                       ├─ Enhanced player controls ✅
+                       ├─ Next/previous navigation ✅
+                       └─ Fullscreen support (Plyr built-in)
                        
 v0.5.0 (Sprint 4-5) → Core Features
                        ├─ Search & filtering
-                       └─ Dark/light theme system
+                       └─ Dark/light theme system (Partial - dark theme done)
                        
 v0.7.0 (Sprint 6-7) → Advanced Features
                        ├─ Analytics dashboard
-                       ├─ Playback speed control
-                       └─ Subtitle support
+                       ├─ Playback speed control (Plyr built-in)
+                       └─ Subtitle support ✅ (Early completion)
                        
 v0.9.0 (Sprint 8-9) → Feature Complete
                        ├─ Export & backup
-                       ├─ Keyboard shortcuts
+                       ├─ Keyboard shortcuts (Partial - player shortcuts done)
                        └─ Comprehensive polish
                        
 v1.0.0 (Sprint 10) → Release 🚀
@@ -142,51 +208,69 @@ v1.0.0 (Sprint 10) → Release 🚀
 
 ## Sprint 0: Foundation & Setup (v0.0.0)
 
-**🎯 Goal:** Set up project infrastructure, development environment, and solve MPV binary bundling challenge.
+**🎯 Goal:** Set up project infrastructure, development environment, and implement web player backend/frontend.
 
-**📦 Target Version:** v0.0.0 (Development Setup)
+**📦 Target Version:** v0.0.0 (Development Setup)  
+**Status:** 🟢 95% Complete (Player done, awaiting library UI)
 
 ### Project Structure
 
-- [ ] Initialize Go module and Wails project structure
-- [ ] Set up frontend directory with React + TypeScript + Vite
-- [ ] Configure Tailwind CSS v4 with custom theme
-- [ ] Install and configure shadcn/ui (default style, slate base color)
-- [ ] Set up pnpm workspace and package.json
-- [ ] Configure TypeScript with strict mode and path aliases
-- [ ] Create directory structure per STYLE-GUIDE.md (feature-based)
+- [x] Initialize Go module and Wails project structure
+- [x] Set up frontend directory with React + TypeScript + Vite
+- [x] Configure Tailwind CSS v4 with custom theme (CourseFin Modern Tech - dark mode)
+- [x] Install and configure shadcn/ui (default style, slate base color)
+- [x] Set up pnpm workspace and package.json
+- [x] Configure TypeScript with strict mode and path aliases
+- [x] Create directory structure per STYLE-GUIDE.md (feature-based)
 - [ ] Set up ESLint + Prettier with strict rules
-- [ ] Configure Git repository with .gitignore
+- [x] Configure Git repository with .gitignore
 
 ### Database Setup
 
-- [ ] Create SQLite database schema (see COURSEFIN.md Section 4)
-- [ ] Implement database connection and initialization in Go
-- [ ] Create migration system using Go embeds
-- [ ] Write initial migration (001_initial_schema.sql)
-- [ ] Create database models/structs in Go
-- [ ] Implement database service with basic CRUD operations
-- [ ] Add database indexes for performance
-- [ ] Test database operations on all platforms
+- [x] Create SQLite database schema (see COURSEFIN.md Section 4)
+- [x] Implement database connection and initialization in Go
+- [x] Create migration system using Go embeds
+- [x] Write initial migration (001_initial_schema.sql)
+- [x] Create database models/structs with SQLC
+- [x] Implement database service with basic CRUD operations
+- [x] Add database indexes for performance
+- [ ] Test database operations on all platforms (Linux tested, Windows/macOS pending)
 
-### MPV Integration Research
+### Web Player Integration
 
-- [ ] Research MPV binary bundling strategies for Wails
-- [ ] Download platform-specific MPV binaries (Linux, Windows, macOS)
-- [ ] Implement binary extraction to app data directory on first run
-- [ ] Create MPV wrapper service for IPC communication
-- [ ] Test MPV subprocess launch and basic playback on each platform
-- [ ] Implement MPV IPC socket connection (Unix socket / named pipe)
-- [ ] Test basic MPV commands (play, pause, seek)
-- [ ] Document MPV bundling approach in internal/mpv/README.md
+- [x] Implement video HTTP handler with range request support
+- [x] Create video streaming service (internal/player/video_handler.go)
+- [x] Implement SRT to WebVTT subtitle conversion
+- [x] Create player service for business logic (internal/player/service.go)
+- [x] Integrate with Wails AssetServer (http.Handler interface)
+- [x] Add Plyr.js dependencies to frontend
+- [x] Create VideoPlayer component with Plyr integration
+- [x] Implement progress tracking (saves every 5 seconds)
+- [x] Add resume position support
+- [x] Implement lecture navigation (Next/Previous)
+- [x] Add keyboard shortcuts (N, P, Space, Arrow keys)
+- [x] Support WebVTT subtitles with auto-conversion
+- [x] Handle loading and error states
+- [x] Test video playback on primary platform
+
+### ~~MPV Integration Research~~ (DEPRECATED - Migrated to Web Player)
+
+- [x] ~~Research MPV binary bundling strategies~~ - Chose web player instead
+- [x] ~~Download platform-specific MPV binaries~~ - Not needed
+- [x] ~~Implement binary extraction~~ - Not needed
+- [x] ~~Create MPV wrapper service~~ - Replaced with HTTP video handler
+- [x] ~~Test MPV subprocess launch~~ - Not applicable
+- [x] ~~Implement MPV IPC socket connection~~ - Not applicable
+- [x] ~~Test basic MPV commands~~ - Not applicable
+- [x] ~~Document MPV bundling approach~~ - Documented web player approach instead
 
 ### Build & Development Setup
 
-- [ ] Create build scripts for all platforms (Linux, Windows, macOS)
-- [ ] Configure Wails build settings in wails.json
-- [ ] Set up hot reload for development (`wails dev`)
+- [x] Create build scripts for all platforms (Linux, Windows, macOS)
+- [x] Configure Wails build settings in wails.json (updated for pnpm)
+- [x] Set up hot reload for development (`wails dev`)
 - [ ] Create Makefile or build scripts for common tasks
-- [ ] Test build process on primary platform
+- [x] Test build process on primary platform (Linux - webkit2_41)
 - [ ] Set up basic CI/CD pipeline (GitHub Actions or similar)
 - [ ] Create app icon and branding assets
 
@@ -194,23 +278,25 @@ v1.0.0 (Sprint 10) → Release 🚀
 
 - [ ] Set up Go testing framework and directory structure
 - [ ] Write example unit test for database service
+- [ ] Write unit tests for player service
 - [ ] Set up frontend testing with Vitest (basic config)
 - [ ] Verify test commands work (`go test ./...`, `pnpm test`)
 
 ### Documentation
 
-- [ ] Create README.md with project overview and setup instructions
-- [ ] Document development workflow (how to run, build, test)
+- [x] Create README.md with project overview and setup instructions
+- [x] Document development workflow (how to run, build, test)
 - [ ] Create CHANGELOG.md with v0.0.0 entry
 - [ ] Add CONTRIBUTING.md with coding guidelines
-- [ ] Document MPV bundling solution in internal/mpv/README.md
+- [x] Document web player architecture in ARCHITECTURE.md
+- [x] Update COURSEFIN.md with web player design
 
 ### Notes & Considerations
 
-- **MPV Bundling:** This is the highest risk item. May need extra time to solve cross-platform binary embedding and extraction. Consider using `go:embed` for binary files.
+- **Web Player Migration:** Successfully migrated from external MPV to embedded Plyr.js web player. Benefits: better integration, simpler cross-platform support, no external dependencies.
 - **Database Location:** Ensure proper app data directory paths for each OS (Linux: `~/.local/share/coursefin`, Windows: `AppData/Roaming/coursefin`, macOS: `~/Library/Application Support/coursefin`)
 - **Testing:** Focus on getting the test infrastructure working, not comprehensive coverage yet.
-- **Platform Testing:** Prioritize primary development platform (likely Linux), ensure basic functionality on others.
+- **Platform Testing:** Prioritize primary development platform (Linux), ensure basic functionality on others.
 
 ---
 
