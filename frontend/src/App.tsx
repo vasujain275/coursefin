@@ -1,10 +1,10 @@
-import { useState } from "react";
-import logo from "@/assets/images/logo-universal.png";
-import "@/index.css";
-import { Greet } from "../wailsjs/go/main/App";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { useState } from 'react';
+import logo from '@/assets/images/logo-universal.png';
+import '@/index.css';
+import { Greet } from '../wailsjs/go/main/App';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Card,
   CardContent,
@@ -12,16 +12,18 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
+} from '@/components/ui/card';
 
 function App() {
-  const [resultText, setResultText] = useState("Enter your name to get started!");
-  const [name, setName] = useState("");
+  const [resultText, setResultText] = useState(
+    'Enter your name to get started!',
+  );
+  const [name, setName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
   async function greet() {
     if (!name.trim()) {
-      setResultText("Please enter a name first! 🙏");
+      setResultText('Please enter a name first! 🙏');
       return;
     }
 
@@ -29,16 +31,16 @@ function App() {
     try {
       const result = await Greet(name);
       setResultText(result);
-    } catch (error) {
-      setResultText("Oops! Something went wrong. 😕");
+    } catch {
+      setResultText('Oops! Something went wrong. 😕');
     } finally {
       setIsLoading(false);
     }
   }
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
-      greet();
+    if (e.key === 'Enter') {
+      void greet();
     }
   };
 
@@ -97,13 +99,13 @@ function App() {
               disabled={isLoading}
               className="flex-1 h-11 text-base"
             >
-              {isLoading ? "Greeting..." : "Greet Me! 👋"}
+              {isLoading ? 'Greeting...' : 'Greet Me! 👋'}
             </Button>
             <Button
               variant="outline"
               onClick={() => {
-                setName("");
-                setResultText("Enter your name to get started!");
+                setName('');
+                setResultText('Enter your name to get started!');
               }}
               disabled={isLoading}
               className="h-11"

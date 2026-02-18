@@ -3,12 +3,12 @@ import Plyr from 'plyr';
 import 'plyr/dist/plyr.css';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
-import { 
-  UpdateVideoProgress, 
-  StartLectureWatch, 
-  GetVideoResumePosition 
+import {
+  UpdateVideoProgress,
+  StartLectureWatch,
+  GetVideoResumePosition,
 } from '@/wailsjs/go/main/App';
-import { player } from '@/wailsjs/go/models';
+import type { player } from '@/wailsjs/go/models';
 
 interface VideoPlayerProps {
   lectureInfo: player.LectureInfo;
@@ -16,10 +16,10 @@ interface VideoPlayerProps {
   onNavigatePrevious?: () => void;
 }
 
-export function VideoPlayer({ 
-  lectureInfo, 
-  onNavigateNext, 
-  onNavigatePrevious 
+export function VideoPlayer({
+  lectureInfo,
+  onNavigateNext,
+  onNavigatePrevious,
 }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const playerRef = useRef<Plyr | null>(null);
@@ -78,7 +78,7 @@ export function VideoPlayer({
     // Handle video loaded
     const handleLoadedData = () => {
       setIsLoading(false);
-      loadResumePosition();
+      void loadResumePosition();
     };
 
     // Handle video error
@@ -95,15 +95,15 @@ export function VideoPlayer({
       }
 
       progressIntervalRef.current = window.setInterval(() => {
-        saveProgress();
+        void saveProgress();
       }, 5000);
     };
 
     // Handle pause event
     const handlePause = () => {
       // Save progress immediately when pausing
-      saveProgress();
-      
+      void saveProgress();
+
       // Clear interval
       if (progressIntervalRef.current) {
         clearInterval(progressIntervalRef.current);
@@ -114,18 +114,16 @@ export function VideoPlayer({
     // Handle seeking
     const handleSeeked = () => {
       // Save progress after seeking
-      saveProgress();
+      void saveProgress();
     };
 
     // Save progress function
     const saveProgress = async () => {
-      if (!player) return;
-      
       try {
         await UpdateVideoProgress(
           lectureInfo.LectureID,
           player.currentTime,
-          player.duration
+          player.duration,
         );
       } catch (err) {
         console.error('Failed to save progress:', err);
@@ -140,13 +138,13 @@ export function VideoPlayer({
     player.on('seeked', handleSeeked);
 
     // Start watch session
-    startSession();
+    void startSession();
 
     // Cleanup
     return () => {
       // Save final progress
-      saveProgress();
-      
+      void saveProgress();
+
       // Clear interval
       if (progressIntervalRef.current) {
         clearInterval(progressIntervalRef.current);
@@ -166,7 +164,10 @@ export function VideoPlayer({
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Don't interfere with Plyr's built-in controls
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement
+      ) {
         return;
       }
 
@@ -213,13 +214,9 @@ export function VideoPlayer({
 
       {/* Video Element */}
       <div className="flex-1">
-        <video
-          ref={videoRef}
-          className="h-full w-full"
-          crossOrigin="anonymous"
-        >
+        <video ref={videoRef} className="h-full w-full" crossOrigin="anonymous">
           <source src={lectureInfo.VideoURL} type="video/mp4" />
-          
+
           {/* Subtitle track */}
           {lectureInfo.SubtitleURL && (
             <track

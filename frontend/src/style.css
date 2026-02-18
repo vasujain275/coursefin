@@ -1,5 +1,5 @@
-@import "tailwindcss";
-@import "tw-animate-css";
+@import 'tailwindcss';
+@import 'tw-animate-css';
 
 @custom-variant dark (&:is(.dark *));
 
@@ -43,103 +43,103 @@
 
 /* Radius Variables */
 :root {
-  --radius: 0.5rem;  /* Moderate roundness */
+  --radius: 0.5rem; /* Moderate roundness */
 }
 
 /* Dark Theme (Default - CourseFin Modern Tech) */
 .dark {
   /* Base Colors - Soft Dark Slate */
-  --background: oklch(0.098 0.015 250);           /* #0f172a - Slate 900 */
-  --foreground: oklch(0.984 0.002 247);           /* #f1f5f9 - Slate 100 */
-  
+  --background: oklch(0.098 0.015 250); /* #0f172a - Slate 900 */
+  --foreground: oklch(0.984 0.002 247); /* #f1f5f9 - Slate 100 */
+
   /* Card */
-  --card: oklch(0.157 0.017 252);                 /* #1e293b - Slate 800 */
+  --card: oklch(0.157 0.017 252); /* #1e293b - Slate 800 */
   --card-foreground: oklch(0.984 0.002 247);
-  
+
   /* Popover */
-  --popover: oklch(0.157 0.017 252);              /* Same as card */
+  --popover: oklch(0.157 0.017 252); /* Same as card */
   --popover-foreground: oklch(0.984 0.002 247);
-  
+
   /* Primary - Blue 600 */
-  --primary: oklch(0.553 0.212 264.376);          /* #2563eb */
-  --primary-foreground: oklch(0.984 0.002 247);   /* White text */
-  
+  --primary: oklch(0.553 0.212 264.376); /* #2563eb */
+  --primary-foreground: oklch(0.984 0.002 247); /* White text */
+
   /* Secondary */
-  --secondary: oklch(0.228 0.020 252);            /* #334155 - Slate 700 */
+  --secondary: oklch(0.228 0.02 252); /* #334155 - Slate 700 */
   --secondary-foreground: oklch(0.984 0.002 247);
-  
+
   /* Muted */
-  --muted: oklch(0.228 0.020 252);                /* #334155 - Slate 700 */
-  --muted-foreground: oklch(0.635 0.014 252);     /* #94a3b8 - Slate 400 */
-  
+  --muted: oklch(0.228 0.02 252); /* #334155 - Slate 700 */
+  --muted-foreground: oklch(0.635 0.014 252); /* #94a3b8 - Slate 400 */
+
   /* Accent - Teal/Cyan */
-  --accent: oklch(0.628 0.118 195);               /* #06b6d4 - Cyan 500 */
-  --accent-foreground: oklch(0.098 0.015 250);    /* Dark text */
-  
+  --accent: oklch(0.628 0.118 195); /* #06b6d4 - Cyan 500 */
+  --accent-foreground: oklch(0.098 0.015 250); /* Dark text */
+
   /* Destructive - Muted Red */
-  --destructive: oklch(0.577 0.165 25);           /* #dc2626 - Red 600 muted */
+  --destructive: oklch(0.577 0.165 25); /* #dc2626 - Red 600 muted */
   --destructive-foreground: oklch(0.984 0.002 247);
-  
+
   /* Borders & Inputs */
-  --border: oklch(0.228 0.020 252 / 40%);         /* Slate 700 at 40% */
-  --input: oklch(0.228 0.020 252 / 50%);          /* Slate 700 at 50% */
-  --ring: oklch(0.553 0.212 264.376 / 50%);       /* Primary at 50% for focus */
-  
+  --border: oklch(0.228 0.02 252 / 40%); /* Slate 700 at 40% */
+  --input: oklch(0.228 0.02 252 / 50%); /* Slate 700 at 50% */
+  --ring: oklch(0.553 0.212 264.376 / 50%); /* Primary at 50% for focus */
+
   /* Success (Custom) */
-  --success: oklch(0.628 0.148 155);              /* #10b981 - Emerald 500 muted */
+  --success: oklch(0.628 0.148 155); /* #10b981 - Emerald 500 muted */
   --success-foreground: oklch(0.098 0.015 250);
-  
+
   /* Warning (Custom) */
-  --warning: oklch(0.731 0.156 75);               /* #f59e0b - Amber 500 muted */
+  --warning: oklch(0.731 0.156 75); /* #f59e0b - Amber 500 muted */
   --warning-foreground: oklch(0.098 0.015 250);
-  
+
   /* Sidebar (if needed) */
   --sidebar: oklch(0.157 0.017 252);
   --sidebar-foreground: oklch(0.984 0.002 247);
   --sidebar-primary: oklch(0.553 0.212 264.376);
   --sidebar-primary-foreground: oklch(0.984 0.002 247);
-  --sidebar-accent: oklch(0.228 0.020 252);
+  --sidebar-accent: oklch(0.228 0.02 252);
   --sidebar-accent-foreground: oklch(0.984 0.002 247);
-  --sidebar-border: oklch(0.228 0.020 252 / 40%);
+  --sidebar-border: oklch(0.228 0.02 252 / 40%);
   --sidebar-ring: oklch(0.553 0.212 264.376 / 50%);
 }
 
 /* Light Theme (Future) */
 :root {
-  --background: oklch(0.985 0.002 247);           /* #f8fafc - Slate 50 */
-  --foreground: oklch(0.157 0.017 252);           /* #1e293b - Slate 800 */
-  
-  --card: oklch(1 0 0);                           /* White */
+  --background: oklch(0.985 0.002 247); /* #f8fafc - Slate 50 */
+  --foreground: oklch(0.157 0.017 252); /* #1e293b - Slate 800 */
+
+  --card: oklch(1 0 0); /* White */
   --card-foreground: oklch(0.157 0.017 252);
-  
+
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.157 0.017 252);
-  
-  --primary: oklch(0.553 0.212 264.376);          /* #2563eb - Blue 600 */
-  --primary-foreground: oklch(0.985 0.002 247);   /* White */
-  
-  --secondary: oklch(0.945 0.006 247);            /* #e2e8f0 - Slate 200 */
+
+  --primary: oklch(0.553 0.212 264.376); /* #2563eb - Blue 600 */
+  --primary-foreground: oklch(0.985 0.002 247); /* White */
+
+  --secondary: oklch(0.945 0.006 247); /* #e2e8f0 - Slate 200 */
   --secondary-foreground: oklch(0.157 0.017 252);
-  
-  --muted: oklch(0.945 0.006 247);                /* #e2e8f0 */
-  --muted-foreground: oklch(0.478 0.026 252);     /* #64748b - Slate 500 */
-  
-  --accent: oklch(0.628 0.118 195);               /* #06b6d4 - Cyan 500 */
+
+  --muted: oklch(0.945 0.006 247); /* #e2e8f0 */
+  --muted-foreground: oklch(0.478 0.026 252); /* #64748b - Slate 500 */
+
+  --accent: oklch(0.628 0.118 195); /* #06b6d4 - Cyan 500 */
   --accent-foreground: oklch(0.985 0.002 247);
-  
-  --destructive: oklch(0.577 0.245 27.325);       /* #dc2626 - Red 600 */
+
+  --destructive: oklch(0.577 0.245 27.325); /* #dc2626 - Red 600 */
   --destructive-foreground: oklch(0.985 0.002 247);
-  
-  --border: oklch(0.898 0.009 247);               /* #cbd5e1 - Slate 300 */
+
+  --border: oklch(0.898 0.009 247); /* #cbd5e1 - Slate 300 */
   --input: oklch(0.898 0.009 247);
   --ring: oklch(0.553 0.212 264.376);
-  
+
   --success: oklch(0.628 0.148 155);
   --success-foreground: oklch(0.985 0.002 247);
-  
+
   --warning: oklch(0.731 0.156 75);
   --warning-foreground: oklch(0.157 0.017 252);
-  
+
   --sidebar: oklch(0.985 0.002 247);
   --sidebar-foreground: oklch(0.157 0.017 252);
   --sidebar-primary: oklch(0.553 0.212 264.376);
