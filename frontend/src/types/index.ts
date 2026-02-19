@@ -48,26 +48,15 @@ export interface Course {
   slug: string;
   description?: string;
   instructorName?: string;
-  instructorBio?: string;
   thumbnailUrl?: string;
   thumbnailPath?: string;
-  localPosterPath?: string;
-  udemyUrl?: string;
-  platform?: string;
-  coursePath: string;
+  coursePath: string;           // ABSOLUTE path to course folder
   totalDuration: number;
   totalLectures?: number;
-  rating?: number;
-  enrolledStudents?: number;
-  language?: string;
-  category?: string;
-  subcategory?: string;
-  level?: string;
-  lastUpdated?: string;
   createdAt?: string;
   updatedAt?: string;
-  progress?: number; // Computed progress percentage (0-100)
-  sections?: Section[]; // Only populated when fetching with GetCourseWithSections
+  progress?: number;            // Computed progress percentage (0-100)
+  sections?: Section[];         // Only populated when fetching with GetCourseWithSections
 }
 
 // ============================================================================

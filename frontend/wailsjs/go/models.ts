@@ -137,23 +137,11 @@ export namespace course {
 	    slug: string;
 	    description?: string;
 	    instructor_name?: string;
-	    instructor_bio?: string;
 	    thumbnail_url?: string;
 	    thumbnail_path?: string;
-	    local_poster_path?: string;
-	    udemy_url?: string;
-	    platform?: string;
 	    course_path: string;
 	    total_duration?: number;
 	    total_lectures?: number;
-	    rating?: number;
-	    enrolled_students?: number;
-	    language?: string;
-	    category?: string;
-	    subcategory?: string;
-	    level?: string;
-	    // Go type: time
-	    last_updated?: any;
 	    // Go type: time
 	    created_at?: any;
 	    // Go type: time
@@ -171,22 +159,11 @@ export namespace course {
 	        this.slug = source["slug"];
 	        this.description = source["description"];
 	        this.instructor_name = source["instructor_name"];
-	        this.instructor_bio = source["instructor_bio"];
 	        this.thumbnail_url = source["thumbnail_url"];
 	        this.thumbnail_path = source["thumbnail_path"];
-	        this.local_poster_path = source["local_poster_path"];
-	        this.udemy_url = source["udemy_url"];
-	        this.platform = source["platform"];
 	        this.course_path = source["course_path"];
 	        this.total_duration = source["total_duration"];
 	        this.total_lectures = source["total_lectures"];
-	        this.rating = source["rating"];
-	        this.enrolled_students = source["enrolled_students"];
-	        this.language = source["language"];
-	        this.category = source["category"];
-	        this.subcategory = source["subcategory"];
-	        this.level = source["level"];
-	        this.last_updated = this.convertValues(source["last_updated"], null);
 	        this.created_at = this.convertValues(source["created_at"], null);
 	        this.updated_at = this.convertValues(source["updated_at"], null);
 	        this.sections = this.convertValues(source["sections"], SectionWithLectures);
