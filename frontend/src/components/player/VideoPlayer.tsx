@@ -30,6 +30,10 @@ export function VideoPlayer({
   useEffect(() => {
     if (!videoRef.current) return;
 
+    console.log('[VideoPlayer] Initializing with lectureInfo:', lectureInfo);
+    console.log('[VideoPlayer] Video URL:', lectureInfo.VideoURL);
+    console.log('[VideoPlayer] Subtitle URL:', lectureInfo.SubtitleURL);
+
     // Initialize Plyr
     const player = new Plyr(videoRef.current, {
       controls: [
@@ -77,12 +81,16 @@ export function VideoPlayer({
 
     // Handle video loaded
     const handleLoadedData = () => {
+      console.log('[VideoPlayer] Video loaded successfully');
       setIsLoading(false);
       void loadResumePosition();
     };
 
     // Handle video error
-    const handleError = () => {
+    const handleError = (event: any) => {
+      console.error('[VideoPlayer] Video error:', event);
+      console.error('[VideoPlayer] Video element:', videoRef.current);
+      console.error('[VideoPlayer] Video src:', videoRef.current?.querySelector('source')?.src);
       setIsLoading(false);
       setError('Failed to load video. Please check the file path.');
     };
