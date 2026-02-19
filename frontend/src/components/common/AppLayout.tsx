@@ -1,0 +1,30 @@
+// ============================================================================
+// AppLayout - CourseFin
+// ============================================================================
+// Purpose: Main application layout wrapper
+// Architecture: Header + Content area with proper spacing
+// ============================================================================
+
+import { Header } from './Header';
+
+interface AppLayoutProps {
+  children: React.ReactNode;
+  onAddCourse?: () => void;
+  onSettings?: () => void;
+  onSearch?: (query: string) => void;
+}
+
+export function AppLayout({ children, onAddCourse, onSettings, onSearch }: AppLayoutProps) {
+  return (
+    <div className="min-h-screen bg-background">
+      <Header 
+        onAddCourse={onAddCourse}
+        onSettings={onSettings}
+        onSearch={onSearch}
+      />
+      <main className="container px-6 py-8">
+        {children}
+      </main>
+    </div>
+  );
+}
