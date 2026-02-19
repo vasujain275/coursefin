@@ -447,6 +447,7 @@ CREATE INDEX IF NOT EXISTS idx_notes_course ON notes(course_id);  -- Course-wide
 -- ============================================================================
 
 INSERT INTO app_settings (key, value) VALUES
+    ('first_run', 'true'),                            -- Indicates app needs onboarding
     ('theme', 'system'),                               -- Follow system theme by default
     ('default_playback_speed', '1.0'),                -- Normal speed
     ('auto_mark_complete_threshold', '0.90'),         -- 90% watched = complete

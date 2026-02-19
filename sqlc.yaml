@@ -13,7 +13,7 @@ sql:
     queries: "queries/"
     
     # Where to find schema migrations (for understanding table structures)
-    schema: "migrations/"
+    schema: "internal/database/migrations/"
     
     # Code generation settings
     gen:
