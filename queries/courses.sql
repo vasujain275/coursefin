@@ -11,30 +11,19 @@
 -- name: CreateCourse :one
 -- Purpose: Add a new course to the library
 -- Returns: Complete course record with generated ID
--- Usage: After scanning course folder and fetching Udemy metadata
+-- Usage: After scanning course folder
 INSERT INTO courses (
     title,
     slug,
     description,
     instructor_name,
-    instructor_bio,
     thumbnail_url,
     thumbnail_path,
-    local_poster_path,
-    udemy_url,
-    platform,
     course_path,
     total_duration,
-    total_lectures,
-    rating,
-    enrolled_students,
-    language,
-    category,
-    subcategory,
-    level,
-    last_updated
+    total_lectures
 ) VALUES (
-    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+    ?, ?, ?, ?, ?, ?, ?, ?, ?
 )
 RETURNING *;
 
@@ -72,28 +61,6 @@ SELECT * FROM courses WHERE course_path = ? LIMIT 1;
 SELECT * FROM courses 
 ORDER BY created_at DESC
 LIMIT ? OFFSET ?;
-
--- ============================================================================
--- READ: List courses by platform
--- ============================================================================
--- name: ListCoursesByPlatform :many
--- Purpose: Filter courses by platform (udemy, coursera, etc.)
--- Usage: Platform-specific views, filters
-SELECT * FROM courses 
-WHERE platform = ?
-ORDER BY created_at DESC;
-
--- ============================================================================
--- READ: List courses by category
--- ============================================================================
--- name: ListCoursesByCategory :many
--- Purpose: Filter courses by category and optional subcategory
--- Usage: Category browsing, filtering
--- Note: If subcategory is NULL or empty, matches any subcategory
-SELECT * FROM courses 
-WHERE category = ?
-  AND (? = '' OR subcategory = ?)
-ORDER BY title ASC;
 
 -- ============================================================================
 -- READ: Search courses by title
@@ -196,35 +163,17 @@ LIMIT ?;
 SELECT COUNT(*) FROM courses;
 
 -- ============================================================================
--- READ: Count courses by platform
--- ============================================================================
--- name: CountCoursesByPlatform :one
--- Purpose: Get course count for specific platform
--- Usage: Platform-specific stats
-SELECT COUNT(*) FROM courses WHERE platform = ?;
-
--- ============================================================================
 -- UPDATE: Update course metadata
 -- ============================================================================
 -- name: UpdateCourse :one
--- Purpose: Update course information (after metadata refresh or manual edit)
+-- Purpose: Update course information (after manual edit)
 -- Returns: Updated course record
 UPDATE courses SET
     title = ?,
     description = ?,
     instructor_name = ?,
-    instructor_bio = ?,
     thumbnail_url = ?,
     thumbnail_path = ?,
-    local_poster_path = ?,
-    udemy_url = ?,
-    rating = ?,
-    enrolled_students = ?,
-    language = ?,
-    category = ?,
-    subcategory = ?,
-    level = ?,
-    last_updated = ?,
     updated_at = CURRENT_TIMESTAMP
 WHERE id = ?
 RETURNING *;
@@ -242,14 +191,13 @@ UPDATE courses SET
 WHERE id = ?;
 
 -- ============================================================================
--- UPDATE: Update course poster paths
+-- UPDATE: Update course thumbnail path
 -- ============================================================================
--- name: UpdateCoursePosterPaths :exec
--- Purpose: Update thumbnail and poster paths after downloading/discovering images
--- Usage: After Udemy thumbnail download or local poster discovery
+-- name: UpdateCourseThumbnailPath :exec
+-- Purpose: Update thumbnail path after downloading image
+-- Usage: After thumbnail download
 UPDATE courses SET
     thumbnail_path = ?,
-    local_poster_path = ?,
     updated_at = CURRENT_TIMESTAMP
 WHERE id = ?;
 

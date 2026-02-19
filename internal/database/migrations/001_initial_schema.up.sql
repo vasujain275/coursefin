@@ -16,54 +16,34 @@
 -- ============================================================================
 -- Purpose: Primary table storing course-level metadata and information
 -- Data Sources:
---   - Filesystem: course folder structure, local poster images
---   - Udemy API: metadata scraping (title, instructor, thumbnail, ratings)
+--   - Filesystem: course folder structure
 --   - User Input: manual edits and overrides
--- Path Strategy: course_path is relative to library root (e.g., "Full-Stack AI with Python LLMs/")
+-- Path Strategy: course_path is an ABSOLUTE path to the course folder
 -- ============================================================================
 
 CREATE TABLE IF NOT EXISTS courses (
     -- Identity & Core Info
     id INTEGER PRIMARY KEY AUTOINCREMENT,              -- Unique course identifier
-    title TEXT NOT NULL,                                -- Course title (from folder name or Udemy)
+    title TEXT NOT NULL,                                -- Course title (from folder name or manual)
     slug TEXT UNIQUE NOT NULL,                          -- URL-friendly unique identifier (e.g., "full-stack-ai-python")
-    description TEXT,                                   -- Long-form course description from Udemy
+    description TEXT,                                   -- Long-form course description
     
     -- Instructor Information
-    instructor_name TEXT,                               -- Primary instructor name (e.g., "Hitesh Choudhary")
-    instructor_bio TEXT,                                -- Instructor biography and credentials
+    instructor_name TEXT,                               -- Primary instructor name
     
     -- Visual Assets (Images)
-    thumbnail_url TEXT,                                 -- Remote Udemy thumbnail URL (for re-downloading if needed)
+    thumbnail_url TEXT,                                 -- Remote thumbnail URL (for re-downloading if needed)
     thumbnail_path TEXT,                                -- Cached local thumbnail (relative path, e.g., ".coursefin/thumbnails/abc123.jpg")
-    local_poster_path TEXT,                             -- Local course poster found in course folder (e.g., "Full-Stack AI/poster.jpg")
-                                                        -- Priority: local_poster_path > thumbnail_path (prefer local over remote)
-    
-    -- External References
-    udemy_url TEXT UNIQUE,                              -- Full Udemy course URL (e.g., "https://udemy.com/course/full-stack-ai/")
-    platform TEXT DEFAULT 'udemy',                      -- Course platform (future: 'coursera', 'pluralsight', 'youtube')
     
     -- Filesystem Reference
-    course_path TEXT NOT NULL,                          -- RELATIVE path from library root (e.g., "Full-Stack AI with Python LLMs/")
+    course_path TEXT NOT NULL,                          -- ABSOLUTE path to course folder
                                                         -- This is the actual folder containing all course files
     
     -- Aggregated Metadata (calculated from lectures)
     total_duration INTEGER,                             -- Total course duration in SECONDS (sum of all video lectures)
     total_lectures INTEGER,                             -- Total number of lectures across all sections
     
-    -- Quality & Popularity Metrics
-    rating REAL,                                        -- Course rating (0.0 to 5.0, from Udemy)
-    enrolled_students INTEGER,                          -- Number of students enrolled (from Udemy)
-    
-    -- Classification
-    language TEXT,                                      -- Primary course language (e.g., "en", "es", "fr")
-    category TEXT,                                      -- High-level category (e.g., "Development", "Business", "Design")
-    subcategory TEXT,                                   -- Specific subcategory (e.g., "Web Development", "Data Science")
-    level TEXT CHECK(level IN ('Beginner', 'Intermediate', 'Advanced', 'All Levels')),  
-                                                        -- Course difficulty level
-    
     -- Timestamps
-    last_updated DATETIME,                              -- When course content was last updated (from Udemy or manual)
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,     -- When this course was first imported to CourseFin
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP      -- When this record was last modified
 );
@@ -402,8 +382,6 @@ CREATE TABLE IF NOT EXISTS app_settings (
 
 -- Course Indexes
 CREATE INDEX IF NOT EXISTS idx_courses_slug ON courses(slug);
-CREATE INDEX IF NOT EXISTS idx_courses_platform ON courses(platform);
-CREATE INDEX IF NOT EXISTS idx_courses_category ON courses(category, subcategory);
 CREATE INDEX IF NOT EXISTS idx_courses_created_at ON courses(created_at DESC);  -- For "recently added" sorting
 
 -- Section Indexes
