@@ -10,14 +10,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 
 interface GettingStartedGuideProps {
   onImportCourse?: () => void;
-  onBrowseLibrary?: () => void;
   onSettings?: () => void;
 }
 
-export function GettingStartedGuide({ 
-  onImportCourse, 
-  onBrowseLibrary,
-  onSettings 
+export function GettingStartedGuide({
+  onImportCourse,
+  onSettings
 }: GettingStartedGuideProps) {
   return (
     <div className="max-w-6xl mx-auto space-y-12">
@@ -39,7 +37,7 @@ export function GettingStartedGuide({
             />
           </svg>
         </div>
-        
+
         <div className="space-y-4">
           <h1 className="text-5xl font-bold tracking-tight text-foreground">
             Welcome to CourseFin
@@ -58,9 +56,9 @@ export function GettingStartedGuide({
             className="h-12 px-8 text-base gap-2"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
-            Import Your First Course
+            Scan Library
           </Button>
           <Button
             onClick={onSettings}
@@ -219,10 +217,10 @@ export function GettingStartedGuide({
                 2
               </div>
               <h3 className="text-lg font-semibold text-foreground">
-                Import Courses
+                Scan Your Library
               </h3>
               <p className="text-sm text-muted-foreground leading-relaxed">
-                Click "Add Course" in the header to scan and import courses from your library. CourseFin will automatically detect the course structure.
+                Click <strong>Refresh Library</strong> in the library view to scan your courses folder and automatically import all course subfolders.
               </p>
             </div>
             {/* Connector Line */}
@@ -258,9 +256,9 @@ export function GettingStartedGuide({
             className="h-12 px-8 text-base gap-2"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
-            Import Your First Course
+            Scan Library
           </Button>
         </div>
       </div>

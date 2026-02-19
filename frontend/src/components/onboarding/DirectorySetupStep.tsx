@@ -5,12 +5,12 @@
 // Architecture: Uses Wails SelectFolderDialog binding
 // ============================================================================
 
-import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SelectFolderDialog } from '@/wailsjs/go/main/App';
+import { useState } from 'react';
 
 interface DirectorySetupStepProps {
   onNext: () => void;
@@ -19,11 +19,11 @@ interface DirectorySetupStepProps {
   onDirectoryChange: (path: string) => void;
 }
 
-export function DirectorySetupStep({ 
-  onNext, 
-  onBack, 
+export function DirectorySetupStep({
+  onNext,
+  onBack,
   initialDirectory,
-  onDirectoryChange 
+  onDirectoryChange
 }: DirectorySetupStepProps) {
   const [directory, setDirectory] = useState(initialDirectory || '');
   const [isSelecting, setIsSelecting] = useState(false);
@@ -32,10 +32,10 @@ export function DirectorySetupStep({
   const handleSelectFolder = async () => {
     setIsSelecting(true);
     setError(undefined);
-    
+
     try {
       const path = await SelectFolderDialog('Select Your Courses Directory');
-      
+
       if (path && path.trim()) {
         setDirectory(path);
         onDirectoryChange(path);
@@ -54,7 +54,7 @@ export function DirectorySetupStep({
       setError('Please select a directory before continuing');
       return;
     }
-    
+
     onNext();
   };
 
@@ -81,14 +81,14 @@ export function DirectorySetupStep({
               Select the parent folder that contains all your course folders. CourseFin will scan for courses inside this directory.
             </CardDescription>
           </CardHeader>
-          
+
           <CardContent className="space-y-6">
             {/* Directory Input */}
             <div className="space-y-3">
               <Label htmlFor="directory" className="text-base">
                 Selected Folder
               </Label>
-              
+
               <div className="flex gap-3">
                 <Input
                   id="directory"
@@ -97,7 +97,7 @@ export function DirectorySetupStep({
                   placeholder="No folder selected..."
                   className="flex-1 h-11 text-base font-mono text-sm bg-muted"
                 />
-                
+
                 <Button
                   onClick={handleSelectFolder}
                   disabled={isSelecting}
@@ -122,7 +122,7 @@ export function DirectorySetupStep({
                   )}
                 </Button>
               </div>
-              
+
               {/* Error Message */}
               {error && (
                 <div className="flex items-center gap-2 text-sm text-destructive">
@@ -158,7 +158,7 @@ export function DirectorySetupStep({
               </div>
             </div>
           </CardContent>
-          
+
           <CardFooter className="flex gap-3">
             <Button
               onClick={onBack}
@@ -167,20 +167,20 @@ export function DirectorySetupStep({
             >
               Back
             </Button>
-            
+
             <Button
               onClick={handleContinue}
               disabled={!canContinue}
               className="flex-1 h-11 text-base"
             >
-              Complete Setup
+              Continue
             </Button>
           </CardFooter>
         </Card>
 
         {/* Footer */}
         <p className="text-center text-sm text-muted-foreground">
-          Step 2 of 2
+          Step 2 of 3
         </p>
       </div>
     </div>

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 
 	"coursefin/internal/course"
@@ -139,11 +140,6 @@ func (a *App) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// For all other paths, return 404 (Wails will handle frontend assets separately)
 	http.NotFound(w, r)
-}
-
-// Greet returns a greeting for the given name
-func (a *App) Greet(name string) string {
-	return fmt.Sprintf("Hello %s, It's show time!", name)
 }
 
 // =====================================
@@ -349,33 +345,45 @@ func (a *App) SetSettingValue(key, value string) error {
 }
 
 // =====================================
-// Course Import Methods
+// Course Library Methods
 // =====================================
 
-// ImportCourse scans and imports a course from a folder
-func (a *App) ImportCourse(coursePath string) (*course.ImportCourseResult, error) {
+// ScanLibrary scans the configured courses directory and imports all subfolders as courses.
+// Already-imported courses are skipped. Non-fatal errors (e.g. invalid folder structure)
+// are collected per-folder and returned in the result rather than aborting the scan.
+func (a *App) ScanLibrary() (*course.ScanLibraryResult, error) {
 	if a.courseSvc == nil {
 		return nil, fmt.Errorf("course service not initialized")
 	}
 
-	// Get courses directory
 	coursesDir, err := a.settingsSvc.GetCoursesDirectory(a.ctx)
 	if err != nil || coursesDir == "" {
-		return nil, fmt.Errorf("courses directory not set")
+		return nil, fmt.Errorf("courses directory not configured")
 	}
 
-	return a.courseSvc.ImportCourse(a.ctx, coursePath, coursesDir)
+	return a.courseSvc.ScanLibrary(a.ctx, coursesDir)
 }
 
-// ScanCourseFolder scans a course folder and returns metadata without importing
-func (a *App) ScanCourseFolder(coursePath string) (*course.CourseMetadata, error) {
-	// Get courses directory
-	coursesDir, err := a.settingsSvc.GetCoursesDirectory(a.ctx)
-	if err != nil || coursesDir == "" {
-		return nil, fmt.Errorf("courses directory not set")
+// GetSubfolders returns the names of all non-hidden subdirectories inside a directory.
+// Used during onboarding to preview how many course folders will be imported.
+func (a *App) GetSubfolders(dir string) ([]string, error) {
+	if dir == "" {
+		return nil, fmt.Errorf("directory path is required")
 	}
 
-	return course.ScanCourseFolder(coursePath, coursesDir)
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read directory: %w", err)
+	}
+
+	var folders []string
+	for _, entry := range entries {
+		if entry.IsDir() && !strings.HasPrefix(entry.Name(), ".") {
+			folders = append(folders, entry.Name())
+		}
+	}
+
+	return folders, nil
 }
 
 // GetCourseWithSections retrieves a course with all sections and lectures

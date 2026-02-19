@@ -6,23 +6,22 @@
 // ============================================================================
 
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Input } from '@/components/ui/input';
 
 interface HeaderProps {
-  onAddCourse?: () => void;
   onSettings?: () => void;
   onSearch?: (query: string) => void;
 }
 
-export function Header({ onAddCourse, onSettings, onSearch }: HeaderProps) {
+export function Header({ onSettings, onSearch }: HeaderProps) {
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     onSearch?.(e.target.value);
   };
@@ -80,18 +79,6 @@ export function Header({ onAddCourse, onSettings, onSearch }: HeaderProps) {
 
         {/* Actions */}
         <div className="flex items-center gap-2">
-          {/* Add Course Button */}
-          <Button
-            onClick={onAddCourse}
-            size="sm"
-            className="gap-2"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            Add Course
-          </Button>
-
           {/* Settings Menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

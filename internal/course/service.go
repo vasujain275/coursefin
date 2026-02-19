@@ -12,6 +12,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -38,6 +39,68 @@ type ImportCourseResult struct {
 	TotalLectures int    `json:"totalLectures"`
 	TotalDuration int64  `json:"totalDuration"`
 	AlreadyExists bool   `json:"alreadyExists"`
+}
+
+// ScanLibraryResult contains the aggregate result of a library scan
+type ScanLibraryResult struct {
+	CoursesAdded   int      `json:"coursesAdded"`
+	CoursesSkipped int      `json:"coursesSkipped"` // already existed in DB
+	Errors         []string `json:"errors"`         // non-fatal per-folder errors
+}
+
+// ScanLibrary scans all top-level subfolders of coursesDir and imports each one as a course.
+// Already-imported courses are skipped. Non-fatal per-folder errors are collected and returned
+// in the result rather than aborting the whole scan.
+func (s *Service) ScanLibrary(ctx context.Context, coursesDir string) (*ScanLibraryResult, error) {
+	// Validate courses directory
+	info, err := os.Stat(coursesDir)
+	if err != nil {
+		return nil, fmt.Errorf("courses directory not accessible: %w", err)
+	}
+	if !info.IsDir() {
+		return nil, fmt.Errorf("courses directory is not a directory: %s", coursesDir)
+	}
+
+	// List all entries in the courses directory
+	entries, err := os.ReadDir(coursesDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read courses directory: %w", err)
+	}
+
+	result := &ScanLibraryResult{
+		Errors: []string{},
+	}
+
+	for _, entry := range entries {
+		// Only process top-level subdirectories
+		if !entry.IsDir() {
+			continue
+		}
+
+		// Skip hidden directories (e.g. .git, .DS_Store)
+		if strings.HasPrefix(entry.Name(), ".") {
+			continue
+		}
+
+		coursePath := filepath.Join(coursesDir, entry.Name())
+
+		// Attempt to import the course
+		importResult, err := s.ImportCourse(ctx, coursePath, coursesDir)
+		if err != nil {
+			// Non-fatal: collect error and continue scanning other folders
+			result.Errors = append(result.Errors,
+				fmt.Sprintf("%s: %v", entry.Name(), err))
+			continue
+		}
+
+		if importResult.AlreadyExists {
+			result.CoursesSkipped++
+		} else {
+			result.CoursesAdded++
+		}
+	}
+
+	return result, nil
 }
 
 // ImportCourse scans and imports a course from a folder path

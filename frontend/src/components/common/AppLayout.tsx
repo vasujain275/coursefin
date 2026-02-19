@@ -9,16 +9,14 @@ import { Header } from './Header';
 
 interface AppLayoutProps {
   children: React.ReactNode;
-  onAddCourse?: () => void;
   onSettings?: () => void;
   onSearch?: (query: string) => void;
 }
 
-export function AppLayout({ children, onAddCourse, onSettings, onSearch }: AppLayoutProps) {
+export function AppLayout({ children, onSettings, onSearch }: AppLayoutProps) {
   return (
     <div className="min-h-screen bg-background">
-      <Header 
-        onAddCourse={onAddCourse}
+      <Header
         onSettings={onSettings}
         onSearch={onSearch}
       />

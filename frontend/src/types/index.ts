@@ -91,36 +91,10 @@ export interface OnboardingState {
 // Course Import Types
 // ============================================================================
 
-export interface ImportCourseResult {
-  courseId: number;
-  title: string;
-  totalSections: number;
-  totalLectures: number;
-  totalDuration: number;
-  alreadyExists: boolean;
-}
-
-export interface CourseMetadata {
-  path: string;
-  title: string;
-  thumbnailURL?: string;
-  totalSections: number;
-  totalLectures: number;
-  sections: SectionMetadata[];
-}
-
-export interface SectionMetadata {
-  title: string;
-  sectionNumber: number;
-  lectures: LectureMetadata[];
-}
-
-export interface LectureMetadata {
-  title: string;
-  lectureNumber: number;
-  videoPath: string;
-  duration: number;
-  subtitlePaths: string[];
+export interface ScanLibraryResult {
+  coursesAdded: number;
+  coursesSkipped: number;  // already existed in DB
+  errors: string[];        // non-fatal per-folder errors
 }
 
 // ============================================================================

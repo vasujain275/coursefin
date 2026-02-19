@@ -42,20 +42,16 @@ export function GetSettingValue(arg1) {
   return window['go']['main']['App']['GetSettingValue'](arg1);
 }
 
+export function GetSubfolders(arg1) {
+  return window['go']['main']['App']['GetSubfolders'](arg1);
+}
+
 export function GetTheme() {
   return window['go']['main']['App']['GetTheme']();
 }
 
 export function GetVideoResumePosition(arg1) {
   return window['go']['main']['App']['GetVideoResumePosition'](arg1);
-}
-
-export function Greet(arg1) {
-  return window['go']['main']['App']['Greet'](arg1);
-}
-
-export function ImportCourse(arg1) {
-  return window['go']['main']['App']['ImportCourse'](arg1);
 }
 
 export function IsFirstRun() {
@@ -66,8 +62,8 @@ export function IsTrackingProgress() {
   return window['go']['main']['App']['IsTrackingProgress']();
 }
 
-export function ScanCourseFolder(arg1) {
-  return window['go']['main']['App']['ScanCourseFolder'](arg1);
+export function ScanLibrary() {
+  return window['go']['main']['App']['ScanLibrary']();
 }
 
 export function SelectFolderDialog(arg1) {

@@ -1,25 +1,27 @@
 // ============================================================================
 // OnboardingFlow - CourseFin
 // ============================================================================
-// Purpose: Orchestrates multi-step onboarding process
+// Purpose: Orchestrates the 3-step onboarding process
+// Steps: 0 = Welcome, 1 = Directory Setup, 2 = Library Scan & Results
 // Architecture: Manages step transitions and state persistence
 // ============================================================================
 
 import { useOnboardingStore } from '@/stores/onboardingStore';
 import { useSettingsStore } from '@/stores/settingsStore';
-import { WelcomeStep } from './WelcomeStep';
 import { DirectorySetupStep } from './DirectorySetupStep';
+import { LibraryScanStep } from './LibraryScanStep';
+import { WelcomeStep } from './WelcomeStep';
 
 interface OnboardingFlowProps {
   onComplete: () => void;
 }
 
 export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
-  const { 
-    step, 
+  const {
+    step,
     coursesDirectory,
-    nextStep, 
-    previousStep, 
+    nextStep,
+    previousStep,
     setCoursesDirectory,
     completeStep,
   } = useOnboardingStore();
@@ -33,15 +35,16 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
 
   const handleDirectoryNext = async () => {
     completeStep(1);
-    
-    // Complete onboarding immediately after directory setup
+    // Move to the library scan step — scan happens there
+    nextStep();
+  };
+
+  const handleScanComplete = async () => {
+    // Mark onboarding as finished AFTER the scan
     await completeOnboarding();
-    
-    // Notify parent
     onComplete();
   };
 
-  // Render current step
   switch (step) {
     case 0:
       return (
@@ -60,6 +63,14 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
           onBack={previousStep}
           initialDirectory={coursesDirectory}
           onDirectoryChange={handleDirectoryChange}
+        />
+      );
+
+    case 2:
+      return (
+        <LibraryScanStep
+          onComplete={handleScanComplete}
+          onBack={previousStep}
         />
       );
 

@@ -1,19 +1,19 @@
 // ============================================================================
 // LandingPage - CourseFin
 // ============================================================================
-// Purpose: Main landing page after onboarding
-// Architecture: Shows GettingStartedGuide or course library
+// Purpose: Main landing page — shows course library with Refresh Library button
+// Architecture: Uses ScanLibrary() Wails binding for on-demand library refresh
 // ============================================================================
 
-import { useState, useEffect } from 'react';
 import { AppLayout } from '@/components/common/AppLayout';
-import { GettingStartedGuide } from './GettingStartedGuide';
 import { EmptyState } from '@/components/common/EmptyState';
 import { CourseGrid } from '@/components/courses/CourseGrid';
-import { ImportCourseDialog } from '@/components/courses/ImportCourseDialog';
-import { GetAllCourses } from '@/wailsjs/go/main/App';
-import type { Course, ImportCourseResult } from '@/types';
+import { Button } from '@/components/ui/button';
+import type { Course } from '@/types';
+import { GetAllCourses, ScanLibrary } from '@/wailsjs/go/main/App';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
+import { GettingStartedGuide } from './GettingStartedGuide';
 
 interface LandingPageProps {
   onCourseSelect: (courseId: number) => void;
@@ -23,12 +23,12 @@ export function LandingPage({ onCourseSelect }: LandingPageProps) {
   const [courses, setCourses] = useState<Course[]>([]);
   const [filteredCourses, setFilteredCourses] = useState<Course[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | undefined>();
-  const [showImportDialog, setShowImportDialog] = useState(false);
 
   // Load courses on mount
   useEffect(() => {
-    loadCourses();
+    void loadCourses();
   }, []);
 
   const loadCourses = async () => {
@@ -46,29 +46,43 @@ export function LandingPage({ onCourseSelect }: LandingPageProps) {
     }
   };
 
-  const handleAddCourse = () => {
-    setShowImportDialog(true);
-  };
+  // Scan the courses directory and import any new course folders
+  const handleRefreshLibrary = async () => {
+    setIsRefreshing(true);
+    try {
+      const result = await ScanLibrary();
 
-  const handleImportSuccess = (result: ImportCourseResult) => {
-    if (result.alreadyExists) {
-      toast.info('Course Already Imported', {
-        description: `"${result.title}" is already in your library.`,
+      // Reload the course grid
+      await loadCourses();
+
+      // Show a summary toast
+      if (result.coursesAdded > 0) {
+        toast.success('Library Refreshed', {
+          description: `${result.coursesAdded} new course${result.coursesAdded !== 1 ? 's' : ''} added${result.coursesSkipped > 0 ? `, ${result.coursesSkipped} already imported` : ''}.`,
+        });
+      } else {
+        toast.info('Library up to date', {
+          description: result.coursesSkipped > 0
+            ? `All ${result.coursesSkipped} course${result.coursesSkipped !== 1 ? 's' : ''} already imported.`
+            : 'No course folders found in your library directory.',
+        });
+      }
+
+      // Warn if some folders were skipped due to errors
+      if (result.errors && result.errors.length > 0) {
+        toast.warning(`${result.errors.length} folder${result.errors.length !== 1 ? 's' : ''} skipped`, {
+          description: result.errors[0],
+        });
+      }
+    } catch (err) {
+      toast.error('Refresh Failed', {
+        description: err instanceof Error ? err.message : 'Could not scan the library directory.',
       });
-    } else {
-      toast.success('Course Imported Successfully', {
-        description: `"${result.title}" has been added to your library with ${result.totalLectures} lectures.`,
-      });
+    } finally {
+      setIsRefreshing(false);
     }
-    
-    // Reload courses
-    void loadCourses();
   };
 
-  const handleSettings = () => {
-    // TODO: Implement settings dialog
-    console.log('Settings clicked');
-  };
 
   const handleSearch = (query: string) => {
     if (!query.trim()) {
@@ -90,8 +104,6 @@ export function LandingPage({ onCourseSelect }: LandingPageProps) {
 
   return (
     <AppLayout
-      onAddCourse={handleAddCourse}
-      onSettings={handleSettings}
       onSearch={handleSearch}
     >
       {/* Loading State */}
@@ -122,11 +134,10 @@ export function LandingPage({ onCourseSelect }: LandingPageProps) {
         />
       )}
 
-      {/* Empty State - Show Getting Started Guide */}
+      {/* Empty State */}
       {!isLoading && !error && courses.length === 0 && (
         <GettingStartedGuide
-          onImportCourse={handleAddCourse}
-          onSettings={handleSettings}
+          onImportCourse={handleRefreshLibrary}
         />
       )}
 
@@ -143,6 +154,32 @@ export function LandingPage({ onCourseSelect }: LandingPageProps) {
                   : `${filteredCourses.length} of ${courses.length} courses`}
               </p>
             </div>
+
+            {/* Refresh Library button */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => void handleRefreshLibrary()}
+              disabled={isRefreshing}
+              className="gap-2"
+              title="Scan library directory for new courses"
+            >
+              <svg
+                className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                />
+              </svg>
+              {isRefreshing ? 'Scanning…' : 'Refresh Library'}
+            </Button>
           </div>
 
           {/* Course Grid */}
@@ -151,20 +188,10 @@ export function LandingPage({ onCourseSelect }: LandingPageProps) {
             onCourseClick={handleCourseClick}
             emptyMessage="No courses match your search"
             emptyActionLabel="Clear Search"
-            emptyAction={() => {
-              setFilteredCourses(courses);
-              // TODO: Also clear search input in header
-            }}
+            emptyAction={() => setFilteredCourses(courses)}
           />
         </div>
       )}
-
-      {/* Import Course Dialog */}
-      <ImportCourseDialog
-        open={showImportDialog}
-        onOpenChange={setShowImportDialog}
-        onImportSuccess={handleImportSuccess}
-      />
     </AppLayout>
   );
 }

@@ -5,8 +5,8 @@
 // Pattern: Zustand store for multi-step onboarding process
 // ============================================================================
 
-import { create } from 'zustand';
 import type { OnboardingState } from '@/types';
+import { create } from 'zustand';
 
 interface OnboardingStore extends OnboardingState {
   // Actions
@@ -18,7 +18,7 @@ interface OnboardingStore extends OnboardingState {
   reset: () => void;
 }
 
-const TOTAL_STEPS = 3; // Welcome, Directory Setup, Optional Import
+const TOTAL_STEPS = 3; // Welcome, Directory Setup, Library Scan
 
 export const useOnboardingStore = create<OnboardingStore>((set) => ({
   // Initial state
@@ -26,32 +26,32 @@ export const useOnboardingStore = create<OnboardingStore>((set) => ({
   totalSteps: TOTAL_STEPS,
   coursesDirectory: undefined,
   completedSteps: [],
-  
+
   // Move to next step
   nextStep: () => set((state) => ({
     step: Math.min(state.step + 1, state.totalSteps - 1),
   })),
-  
+
   // Move to previous step
   previousStep: () => set((state) => ({
     step: Math.max(state.step - 1, 0),
   })),
-  
+
   // Go to specific step
   goToStep: (step) => set((state) => ({
     step: Math.max(0, Math.min(step, state.totalSteps - 1)),
   })),
-  
+
   // Set courses directory
   setCoursesDirectory: (path) => set({ coursesDirectory: path }),
-  
+
   // Mark step as completed
   completeStep: (step) => set((state) => ({
     completedSteps: state.completedSteps.includes(step)
       ? state.completedSteps
       : [...state.completedSteps, step],
   })),
-  
+
   // Reset onboarding state
   reset: () => set({
     step: 0,

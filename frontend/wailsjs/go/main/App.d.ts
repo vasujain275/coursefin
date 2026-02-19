@@ -25,19 +25,17 @@ export function GetResumePosition(arg1:number):Promise<number>;
 
 export function GetSettingValue(arg1:string):Promise<string>;
 
+export function GetSubfolders(arg1:string):Promise<Array<string>>;
+
 export function GetTheme():Promise<string>;
 
 export function GetVideoResumePosition(arg1:number):Promise<number>;
-
-export function Greet(arg1:string):Promise<string>;
-
-export function ImportCourse(arg1:string):Promise<course.ImportCourseResult>;
 
 export function IsFirstRun():Promise<boolean>;
 
 export function IsTrackingProgress():Promise<boolean>;
 
-export function ScanCourseFolder(arg1:string):Promise<course.CourseMetadata>;
+export function ScanLibrary():Promise<course.ScanLibraryResult>;
 
 export function SelectFolderDialog(arg1:string):Promise<string>;
 
