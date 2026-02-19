@@ -23,6 +23,7 @@ type App struct {
 	tracker      *progress.Tracker
 	playerSvc    *player.Service
 	videoHandler *player.VideoHandler
+	videoServer  *player.VideoServer
 	settingsSvc  *settings.Service
 	courseSvc    *course.Service
 }
@@ -74,12 +75,23 @@ func (a *App) startup(ctx context.Context) {
 		fmt.Printf("Courses directory: %s\n", coursesDir)
 	}
 
-	// Initialize video handler
-	a.videoHandler = player.NewVideoHandler(coursesDir)
+	// Initialize video handler (no longer needs coursesDir - paths are now absolute)
+	a.videoHandler = player.NewVideoHandler()
 	fmt.Println("Video handler initialized")
 
-	// Initialize player service
-	a.playerSvc = player.NewService(db, coursesDir)
+	// Initialize video server for serving videos via localhost HTTP
+	// This is needed because WebKitGTK in Wails doesn't properly handle
+	// video elements through the AssetHandler
+	videoServer, err := player.NewVideoServer()
+	if err != nil {
+		fmt.Printf("WARNING: Failed to start video server: %v\n", err)
+	} else {
+		a.videoServer = videoServer
+		fmt.Printf("Video server initialized on port %d\n", videoServer.GetPort())
+	}
+
+	// Initialize player service with video server
+	a.playerSvc = player.NewService(db, coursesDir, a.videoServer)
 	fmt.Println("Player service initialized")
 
 	// Initialize settings service
@@ -98,6 +110,11 @@ func (a *App) shutdown(ctx context.Context) {
 		a.tracker.StopTracking()
 	}
 
+	if a.videoServer != nil {
+		fmt.Println("Stopping video server...")
+		a.videoServer.Stop()
+	}
+
 	if a.db != nil {
 		fmt.Println("Closing database connection...")
 		a.db.Close()
@@ -108,13 +125,16 @@ func (a *App) shutdown(ctx context.Context) {
 // Routes video and subtitle requests to the video handler
 func (a *App) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Path
+	fmt.Printf("[ServeHTTP] Received request: %s\n", path)
 
 	// Check if this is a video or subtitle request
 	if strings.HasPrefix(path, "/videos/") || strings.HasPrefix(path, "/subtitles/") {
+		fmt.Printf("[ServeHTTP] Routing to video handler: %s\n", path)
 		if a.videoHandler != nil {
 			a.videoHandler.ServeHTTP(w, r)
 			return
 		}
+		fmt.Println("[ServeHTTP] Video handler is nil!")
 	}
 
 	// For all other paths, return 404 (Wails will handle frontend assets separately)
