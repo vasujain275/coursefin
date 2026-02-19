@@ -1,3 +1,242 @@
+export namespace course {
+	
+	export class LectureMetadata {
+	    Title: string;
+	    LectureNumber: number;
+	    VideoPath: string;
+	    Duration: number;
+	    SubtitlePaths: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new LectureMetadata(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.Title = source["Title"];
+	        this.LectureNumber = source["LectureNumber"];
+	        this.VideoPath = source["VideoPath"];
+	        this.Duration = source["Duration"];
+	        this.SubtitlePaths = source["SubtitlePaths"];
+	    }
+	}
+	export class SectionMetadata {
+	    Title: string;
+	    SectionNumber: number;
+	    Lectures: LectureMetadata[];
+	
+	    static createFrom(source: any = {}) {
+	        return new SectionMetadata(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.Title = source["Title"];
+	        this.SectionNumber = source["SectionNumber"];
+	        this.Lectures = this.convertValues(source["Lectures"], LectureMetadata);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class CourseMetadata {
+	    Title: string;
+	    ThumbnailURL: string;
+	    Sections: SectionMetadata[];
+	
+	    static createFrom(source: any = {}) {
+	        return new CourseMetadata(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.Title = source["Title"];
+	        this.ThumbnailURL = source["ThumbnailURL"];
+	        this.Sections = this.convertValues(source["Sections"], SectionMetadata);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class SectionWithLectures {
+	    id: number;
+	    course_id: number;
+	    title: string;
+	    section_number: number;
+	    description?: string;
+	    // Go type: time
+	    created_at?: any;
+	    lectures: sqlc.Lecture[];
+	
+	    static createFrom(source: any = {}) {
+	        return new SectionWithLectures(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.course_id = source["course_id"];
+	        this.title = source["title"];
+	        this.section_number = source["section_number"];
+	        this.description = source["description"];
+	        this.created_at = this.convertValues(source["created_at"], null);
+	        this.lectures = this.convertValues(source["lectures"], sqlc.Lecture);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class CourseWithSections {
+	    id: number;
+	    title: string;
+	    slug: string;
+	    description?: string;
+	    instructor_name?: string;
+	    instructor_bio?: string;
+	    thumbnail_url?: string;
+	    thumbnail_path?: string;
+	    local_poster_path?: string;
+	    udemy_url?: string;
+	    platform?: string;
+	    course_path: string;
+	    total_duration?: number;
+	    total_lectures?: number;
+	    rating?: number;
+	    enrolled_students?: number;
+	    language?: string;
+	    category?: string;
+	    subcategory?: string;
+	    level?: string;
+	    // Go type: time
+	    last_updated?: any;
+	    // Go type: time
+	    created_at?: any;
+	    // Go type: time
+	    updated_at?: any;
+	    sections: SectionWithLectures[];
+	
+	    static createFrom(source: any = {}) {
+	        return new CourseWithSections(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.title = source["title"];
+	        this.slug = source["slug"];
+	        this.description = source["description"];
+	        this.instructor_name = source["instructor_name"];
+	        this.instructor_bio = source["instructor_bio"];
+	        this.thumbnail_url = source["thumbnail_url"];
+	        this.thumbnail_path = source["thumbnail_path"];
+	        this.local_poster_path = source["local_poster_path"];
+	        this.udemy_url = source["udemy_url"];
+	        this.platform = source["platform"];
+	        this.course_path = source["course_path"];
+	        this.total_duration = source["total_duration"];
+	        this.total_lectures = source["total_lectures"];
+	        this.rating = source["rating"];
+	        this.enrolled_students = source["enrolled_students"];
+	        this.language = source["language"];
+	        this.category = source["category"];
+	        this.subcategory = source["subcategory"];
+	        this.level = source["level"];
+	        this.last_updated = this.convertValues(source["last_updated"], null);
+	        this.created_at = this.convertValues(source["created_at"], null);
+	        this.updated_at = this.convertValues(source["updated_at"], null);
+	        this.sections = this.convertValues(source["sections"], SectionWithLectures);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class ImportCourseResult {
+	    courseId: number;
+	    title: string;
+	    totalSections: number;
+	    totalLectures: number;
+	    totalDuration: number;
+	    alreadyExists: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new ImportCourseResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.courseId = source["courseId"];
+	        this.title = source["title"];
+	        this.totalSections = source["totalSections"];
+	        this.totalLectures = source["totalLectures"];
+	        this.totalDuration = source["totalDuration"];
+	        this.alreadyExists = source["alreadyExists"];
+	    }
+	}
+	
+	
+
+}
+
 export namespace http {
 	
 	export class Response {
@@ -321,6 +560,69 @@ export namespace player {
 
 export namespace sqlc {
 	
+	export class Lecture {
+	    id: number;
+	    section_id: number;
+	    course_id: number;
+	    title: string;
+	    lecture_number: number;
+	    lecture_type: string;
+	    is_quiz?: boolean;
+	    is_downloadable?: boolean;
+	    file_path: string;
+	    original_filename?: string;
+	    resources_path?: string;
+	    file_size?: number;
+	    duration?: number;
+	    video_codec?: string;
+	    resolution?: string;
+	    has_subtitles?: boolean;
+	    // Go type: time
+	    created_at?: any;
+	
+	    static createFrom(source: any = {}) {
+	        return new Lecture(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.section_id = source["section_id"];
+	        this.course_id = source["course_id"];
+	        this.title = source["title"];
+	        this.lecture_number = source["lecture_number"];
+	        this.lecture_type = source["lecture_type"];
+	        this.is_quiz = source["is_quiz"];
+	        this.is_downloadable = source["is_downloadable"];
+	        this.file_path = source["file_path"];
+	        this.original_filename = source["original_filename"];
+	        this.resources_path = source["resources_path"];
+	        this.file_size = source["file_size"];
+	        this.duration = source["duration"];
+	        this.video_codec = source["video_codec"];
+	        this.resolution = source["resolution"];
+	        this.has_subtitles = source["has_subtitles"];
+	        this.created_at = this.convertValues(source["created_at"], null);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class Progress {
 	    id: number;
 	    lecture_id: number;

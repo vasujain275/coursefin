@@ -6,10 +6,14 @@ import (
 	"net/http"
 	"strings"
 
+	"coursefin/internal/course"
 	"coursefin/internal/database"
 	"coursefin/internal/player"
 	"coursefin/internal/progress"
+	"coursefin/internal/settings"
 	"coursefin/internal/sqlc"
+
+	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // App struct
@@ -19,6 +23,8 @@ type App struct {
 	tracker      *progress.Tracker
 	playerSvc    *player.Service
 	videoHandler *player.VideoHandler
+	settingsSvc  *settings.Service
+	courseSvc    *course.Service
 }
 
 // NewApp creates a new App application struct
@@ -75,6 +81,14 @@ func (a *App) startup(ctx context.Context) {
 	// Initialize player service
 	a.playerSvc = player.NewService(db, coursesDir)
 	fmt.Println("Player service initialized")
+
+	// Initialize settings service
+	a.settingsSvc = settings.NewService(db.Queries())
+	fmt.Println("Settings service initialized")
+
+	// Initialize course service
+	a.courseSvc = course.NewService(db.Queries())
+	fmt.Println("Course service initialized")
 }
 
 // shutdown is called when the app is closing
@@ -244,4 +258,122 @@ func (a *App) GetVideoResumePosition(lectureID int64) (float64, error) {
 		return 0, fmt.Errorf("player service not initialized")
 	}
 	return a.playerSvc.GetResumePosition(a.ctx, lectureID)
+}
+
+// =====================================
+// Settings Methods
+// =====================================
+
+// IsFirstRun checks if the app is running for the first time
+func (a *App) IsFirstRun() (bool, error) {
+	if a.settingsSvc == nil {
+		return false, fmt.Errorf("settings service not initialized")
+	}
+	return a.settingsSvc.IsFirstRun(a.ctx)
+}
+
+// CompleteOnboarding marks the onboarding as complete
+func (a *App) CompleteOnboarding() error {
+	if a.settingsSvc == nil {
+		return fmt.Errorf("settings service not initialized")
+	}
+	return a.settingsSvc.CompleteOnboarding(a.ctx)
+}
+
+// GetCoursesDirectory retrieves the courses directory path
+func (a *App) GetCoursesDirectory() (string, error) {
+	if a.settingsSvc == nil {
+		return "", fmt.Errorf("settings service not initialized")
+	}
+	return a.settingsSvc.GetCoursesDirectory(a.ctx)
+}
+
+// SetCoursesDirectory sets the courses directory path
+func (a *App) SetCoursesDirectory(path string) error {
+	if a.settingsSvc == nil {
+		return fmt.Errorf("settings service not initialized")
+	}
+	return a.settingsSvc.SetCoursesDirectory(a.ctx, path)
+}
+
+// GetTheme retrieves the current theme setting
+func (a *App) GetTheme() (string, error) {
+	if a.settingsSvc == nil {
+		return "", fmt.Errorf("settings service not initialized")
+	}
+	return a.settingsSvc.GetTheme(a.ctx)
+}
+
+// SetTheme updates the theme setting
+func (a *App) SetTheme(theme string) error {
+	if a.settingsSvc == nil {
+		return fmt.Errorf("settings service not initialized")
+	}
+	return a.settingsSvc.SetTheme(a.ctx, theme)
+}
+
+// GetSettingValue retrieves any setting by key
+func (a *App) GetSettingValue(key string) (string, error) {
+	if a.settingsSvc == nil {
+		return "", fmt.Errorf("settings service not initialized")
+	}
+	return a.settingsSvc.GetSetting(a.ctx, key)
+}
+
+// SetSettingValue updates any setting by key
+func (a *App) SetSettingValue(key, value string) error {
+	if a.settingsSvc == nil {
+		return fmt.Errorf("settings service not initialized")
+	}
+	return a.settingsSvc.SetSetting(a.ctx, key, value)
+}
+
+// =====================================
+// Course Import Methods
+// =====================================
+
+// ImportCourse scans and imports a course from a folder
+func (a *App) ImportCourse(coursePath string) (*course.ImportCourseResult, error) {
+	if a.courseSvc == nil {
+		return nil, fmt.Errorf("course service not initialized")
+	}
+
+	// Get courses directory
+	coursesDir, err := a.settingsSvc.GetCoursesDirectory(a.ctx)
+	if err != nil || coursesDir == "" {
+		return nil, fmt.Errorf("courses directory not set")
+	}
+
+	return a.courseSvc.ImportCourse(a.ctx, coursePath, coursesDir)
+}
+
+// ScanCourseFolder scans a course folder and returns metadata without importing
+func (a *App) ScanCourseFolder(coursePath string) (*course.CourseMetadata, error) {
+	// Get courses directory
+	coursesDir, err := a.settingsSvc.GetCoursesDirectory(a.ctx)
+	if err != nil || coursesDir == "" {
+		return nil, fmt.Errorf("courses directory not set")
+	}
+
+	return course.ScanCourseFolder(coursePath, coursesDir)
+}
+
+// GetCourseWithSections retrieves a course with all sections and lectures
+func (a *App) GetCourseWithSections(courseID int64) (*course.CourseWithSections, error) {
+	return a.courseSvc.GetCourseWithSections(a.ctx, courseID)
+}
+
+// =====================================
+// Native Dialogs
+// =====================================
+
+// SelectFolderDialog opens a native folder selection dialog
+func (a *App) SelectFolderDialog(title string) (string, error) {
+	path, err := runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{
+		Title: title,
+	})
+	if err != nil {
+		return "", fmt.Errorf("failed to open folder dialog: %w", err)
+	}
+	return path, nil
 }
