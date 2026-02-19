@@ -8,6 +8,8 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
+      // Order matters - more specific first
+      '@/wailsjs': path.resolve(__dirname, './wailsjs'),
       '@': path.resolve(__dirname, './src'),
     },
   },

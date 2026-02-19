@@ -1,131 +1,97 @@
-import { useState } from 'react';
-import logo from '@/assets/images/logo-universal.png';
-import '@/index.css';
-import { Greet } from '../wailsjs/go/main/App';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+// ============================================================================
+// App - CourseFin
+// ============================================================================
+// Purpose: Main application component with first-run detection and routing
+// Architecture: Routes between onboarding and landing page
+// ============================================================================
+
+import { useEffect, useState } from 'react';
+import '@/style.css';
+import { useSettingsStore } from '@/stores/settingsStore';
+import { OnboardingFlow } from '@/components/onboarding/OnboardingFlow';
+import { LandingPage } from '@/components/landing/LandingPage';
+import { PlayerView } from '@/components/player/PlayerView';
+import { Toaster } from '@/components/ui/sonner';
+
+// Simple navigation state
+type View = 'onboarding' | 'landing' | 'player';
 
 function App() {
-  const [resultText, setResultText] = useState(
-    'Enter your name to get started!',
-  );
-  const [name, setName] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const { firstRun, isLoading, loadSettings, setTheme, theme } = useSettingsStore();
+  const [currentView, setCurrentView] = useState<View>('landing');
+  const [selectedCourseId, setSelectedCourseId] = useState<number | null>(null);
 
-  async function greet() {
-    if (!name.trim()) {
-      setResultText('Please enter a name first! 🙏');
-      return;
-    }
+  // Load settings on mount
+  useEffect(() => {
+    void loadSettings();
+  }, [loadSettings]);
 
-    setIsLoading(true);
-    try {
-      const result = await Greet(name);
-      setResultText(result);
-    } catch {
-      setResultText('Oops! Something went wrong. 😕');
-    } finally {
-      setIsLoading(false);
+  // Apply theme when it changes
+  useEffect(() => {
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else if (theme === 'light') {
+      document.documentElement.classList.remove('dark');
+    } else {
+      // System theme
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      document.documentElement.classList.toggle('dark', prefersDark);
     }
-  }
+  }, [theme]);
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      void greet();
+  // Determine initial view based on firstRun
+  useEffect(() => {
+    if (!isLoading) {
+      setCurrentView(firstRun ? 'onboarding' : 'landing');
     }
+  }, [firstRun, isLoading]);
+
+  const handleOnboardingComplete = () => {
+    setCurrentView('landing');
   };
 
-  return (
-    <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100 flex flex-col items-center justify-center p-8">
-      <div className="w-full max-w-2xl space-y-8">
-        {/* Header */}
-        <div className="text-center space-y-4">
-          <img
-            src={logo}
-            className="w-32 h-32 object-contain mx-auto drop-shadow-lg hover:scale-105 transition-transform"
-            alt="Wails Logo"
-          />
-          <div className="space-y-2">
-            <h1 className="text-4xl font-bold tracking-tight text-slate-900">
-              Welcome to Wails!
-            </h1>
-            <p className="text-slate-600 text-lg">
-              React + TypeScript + Vite + Tailwind CSS v4 + shadcn/ui
-            </p>
-          </div>
-        </div>
+  const handleCourseSelect = (courseId: number) => {
+    setSelectedCourseId(courseId);
+    setCurrentView('player');
+  };
 
-        {/* Main Card */}
-        <Card className="shadow-xl border-slate-200">
-          <CardHeader>
-            <CardTitle className="text-2xl">Greet Function Demo</CardTitle>
-            <CardDescription>
-              Try out the Go backend integration by entering your name below
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="name" className="text-base">
-                Your Name
-              </Label>
-              <Input
-                id="name"
-                placeholder="Enter your name..."
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                onKeyPress={handleKeyPress}
-                disabled={isLoading}
-                className="text-base h-11"
-              />
-            </div>
-            <div className="p-6 bg-slate-50 rounded-lg border border-slate-200 min-h-20 flex items-center justify-center">
-              <p className="text-center font-medium text-slate-900 text-lg">
-                {resultText}
-              </p>
-            </div>
-          </CardContent>
-          <CardFooter className="flex gap-3">
-            <Button
-              onClick={greet}
-              disabled={isLoading}
-              className="flex-1 h-11 text-base"
-            >
-              {isLoading ? 'Greeting...' : 'Greet Me! 👋'}
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setName('');
-                setResultText('Enter your name to get started!');
-              }}
-              disabled={isLoading}
-              className="h-11"
-            >
-              Clear
-            </Button>
-          </CardFooter>
-        </Card>
+  const handleBackToLibrary = () => {
+    setSelectedCourseId(null);
+    setCurrentView('landing');
+  };
 
-        {/* Footer */}
-        <div className="text-center space-y-2">
-          <p className="text-sm text-slate-600">
-            Built with ❤️ using Wails v2.11.0
-          </p>
-          <p className="text-xs text-slate-500">
-            Go backend • React frontend • Native desktop app
-          </p>
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <svg className="animate-spin h-8 w-8 text-primary" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+          </svg>
+          <p className="text-sm text-muted-foreground">Loading CourseFin...</p>
         </div>
       </div>
-    </div>
+    );
+  }
+
+  // Render current view
+  return (
+    <>
+      {currentView === 'onboarding' && (
+        <OnboardingFlow onComplete={handleOnboardingComplete} />
+      )}
+      {currentView === 'landing' && (
+        <LandingPage onCourseSelect={handleCourseSelect} />
+      )}
+      {currentView === 'player' && selectedCourseId && (
+        <PlayerView
+          courseId={selectedCourseId}
+          onBack={handleBackToLibrary}
+        />
+      )}
+      <Toaster />
+    </>
   );
 }
 
