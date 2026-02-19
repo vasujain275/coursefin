@@ -34,15 +34,9 @@ func (s *Service) GetVideoURL(ctx context.Context, lectureID int64) (string, err
 		return "", fmt.Errorf("failed to get lecture: %w", err)
 	}
 
-	// Get course to construct full path
-	course, err := s.db.Queries().GetCourseByID(ctx, lecture.CourseID)
-	if err != nil {
-		return "", fmt.Errorf("failed to get course: %w", err)
-	}
-
-	// Construct video URL path
-	// Format: /videos/{course_path}/{lecture_file_path}
-	relativePath := filepath.Join(course.CoursePath, lecture.FilePath)
+	// lecture.FilePath already contains the full relative path from courses directory
+	// Convert to forward slashes for web URLs (cross-platform compatibility)
+	relativePath := filepath.ToSlash(lecture.FilePath)
 	videoURL := "/videos/" + relativePath
 
 	return videoURL, nil
@@ -62,12 +56,6 @@ func (s *Service) GetSubtitleURL(ctx context.Context, lectureID int64) (string, 
 		return "", nil // No subtitles available
 	}
 
-	// Get course to construct full path
-	course, err := s.db.Queries().GetCourseByID(ctx, lecture.CourseID)
-	if err != nil {
-		return "", fmt.Errorf("failed to get course: %w", err)
-	}
-
 	// Query subtitle from subtitles table (prefer English)
 	subtitles, err := s.db.Queries().ListSubtitlesByLecture(ctx, lectureID)
 	if err != nil || len(subtitles) == 0 {
@@ -79,7 +67,7 @@ func (s *Service) GetSubtitleURL(ctx context.Context, lectureID int64) (string, 
 		// Try .vtt first, then .srt
 		for _, ext := range []string{".vtt", ".srt"} {
 			subtitlePath := basePathWithoutExt + ext
-			relativePath := filepath.Join(course.CoursePath, subtitlePath)
+			relativePath := filepath.ToSlash(subtitlePath)
 			return "/subtitles/" + relativePath, nil
 		}
 
@@ -102,7 +90,8 @@ func (s *Service) GetSubtitleURL(ctx context.Context, lectureID int64) (string, 
 		return "", nil
 	}
 
-	relativePath := filepath.Join(course.CoursePath, selectedSubtitle.FilePath)
+	// subtitle.FilePath already contains the full relative path
+	relativePath := filepath.ToSlash(selectedSubtitle.FilePath)
 	return "/subtitles/" + relativePath, nil
 }
 
