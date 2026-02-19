@@ -42,16 +42,10 @@ type ImportCourseResult struct {
 
 // ImportCourse scans and imports a course from a folder path
 // coursePath: absolute path to course folder
-// coursesDir: absolute path to courses library root directory
+// coursesDir: absolute path to courses library root directory (used for scanning)
 func (s *Service) ImportCourse(ctx context.Context, coursePath string, coursesDir string) (*ImportCourseResult, error) {
-	// Calculate relative path for storage
-	relativePath, err := filepath.Rel(coursesDir, coursePath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to calculate relative path: %w", err)
-	}
-
-	// Check if course already exists
-	existingCourse, err := s.queries.GetCourseByPath(ctx, relativePath)
+	// Check if course already exists (using absolute path)
+	existingCourse, err := s.queries.GetCourseByPath(ctx, coursePath)
 	if err == nil && existingCourse != nil {
 		// Course already imported
 		return &ImportCourseResult{
@@ -91,30 +85,17 @@ func (s *Service) ImportCourse(ctx context.Context, coursePath string, coursesDi
 	// Helper for int64 pointer
 	int64Ptr := func(i int64) *int64 { return &i }
 
-	platform := "udemy"
-
 	// Create course record
 	course, err := s.queries.CreateCourse(ctx, sqlc.CreateCourseParams{
-		Title:            metadata.Title,
-		Slug:             slug,
-		Description:      nil,
-		InstructorName:   nil,
-		InstructorBio:    nil,
-		ThumbnailUrl:     strPtr(metadata.ThumbnailURL),
-		ThumbnailPath:    nil,
-		LocalPosterPath:  nil,
-		UdemyUrl:         nil,
-		Platform:         &platform,
-		CoursePath:       relativePath,
-		TotalDuration:    int64Ptr(totalDuration),
-		TotalLectures:    int64Ptr(int64(totalLectures)),
-		Rating:           nil,
-		EnrolledStudents: nil,
-		Language:         nil,
-		Category:         nil,
-		Subcategory:      nil,
-		Level:            nil,
-		LastUpdated:      nil,
+		Title:          metadata.Title,
+		Slug:           slug,
+		Description:    nil,
+		InstructorName: nil,
+		ThumbnailUrl:   strPtr(metadata.ThumbnailURL),
+		ThumbnailPath:  nil,
+		CoursePath:     coursePath,
+		TotalDuration:  int64Ptr(totalDuration),
+		TotalLectures:  int64Ptr(int64(totalLectures)),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create course: %w", err)
