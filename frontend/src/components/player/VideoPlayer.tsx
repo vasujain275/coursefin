@@ -1,6 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import Plyr from 'plyr';
-import 'plyr/dist/plyr.css';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import {
@@ -22,48 +20,28 @@ export function VideoPlayer({
   onNavigatePrevious,
 }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const playerRef = useRef<Plyr | null>(null);
   const progressIntervalRef = useRef<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!videoRef.current) return;
+    const video = videoRef.current;
+    if (!video) return;
 
     console.log('[VideoPlayer] Initializing with lectureInfo:', lectureInfo);
     console.log('[VideoPlayer] Video URL:', lectureInfo.VideoURL);
     console.log('[VideoPlayer] Subtitle URL:', lectureInfo.SubtitleURL);
 
-    // Initialize Plyr
-    const player = new Plyr(videoRef.current, {
-      controls: [
-        'play-large',
-        'play',
-        'progress',
-        'current-time',
-        'duration',
-        'mute',
-        'volume',
-        'captions',
-        'settings',
-        'pip',
-        'airplay',
-        'fullscreen',
-      ],
-      settings: ['captions', 'quality', 'speed'],
-      keyboard: { focused: true, global: true },
-      tooltips: { controls: true, seek: true },
-      captions: { active: true, update: true },
-    });
-
-    playerRef.current = player;
+    // Reset state for new video
+    setIsLoading(true);
+    setError(null);
 
     // Load resume position
     const loadResumePosition = async () => {
       try {
         const resumeAt = await GetVideoResumePosition(lectureInfo.LectureID);
-        if (resumeAt > 0) {
-          player.currentTime = resumeAt;
+        if (resumeAt > 0 && video) {
+          video.currentTime = resumeAt;
         }
       } catch (err) {
         console.error('Failed to load resume position:', err);
@@ -86,13 +64,19 @@ export function VideoPlayer({
       void loadResumePosition();
     };
 
-    // Handle video error
-    const handleError = (event: any) => {
-      console.error('[VideoPlayer] Video error:', event);
-      console.error('[VideoPlayer] Video element:', videoRef.current);
-      console.error('[VideoPlayer] Video src:', videoRef.current?.querySelector('source')?.src);
+    // Handle video can play
+    const handleCanPlay = () => {
+      console.log('[VideoPlayer] Video can play');
       setIsLoading(false);
-      setError('Failed to load video. Please check the file path.');
+    };
+
+    // Handle video error
+    const handleError = () => {
+      const videoError = video.error;
+      console.error('[VideoPlayer] Video error:', videoError);
+      console.error('[VideoPlayer] Video src:', video.src);
+      setIsLoading(false);
+      setError(`Failed to load video: ${videoError?.message || 'Unknown error'}`);
     };
 
     // Handle play event
@@ -127,11 +111,12 @@ export function VideoPlayer({
 
     // Save progress function
     const saveProgress = async () => {
+      if (!video) return;
       try {
         await UpdateVideoProgress(
           lectureInfo.LectureID,
-          player.currentTime,
-          player.duration,
+          video.currentTime,
+          video.duration,
         );
       } catch (err) {
         console.error('Failed to save progress:', err);
@@ -139,11 +124,12 @@ export function VideoPlayer({
     };
 
     // Add event listeners
-    player.on('loadeddata', handleLoadedData);
-    player.on('error', handleError);
-    player.on('play', handlePlay);
-    player.on('pause', handlePause);
-    player.on('seeked', handleSeeked);
+    video.addEventListener('loadeddata', handleLoadedData);
+    video.addEventListener('canplay', handleCanPlay);
+    video.addEventListener('error', handleError);
+    video.addEventListener('play', handlePlay);
+    video.addEventListener('pause', handlePause);
+    video.addEventListener('seeked', handleSeeked);
 
     // Start watch session
     void startSession();
@@ -158,20 +144,23 @@ export function VideoPlayer({
         clearInterval(progressIntervalRef.current);
       }
 
-      // Remove event listeners and destroy player
-      player.off('loadeddata', handleLoadedData);
-      player.off('error', handleError);
-      player.off('play', handlePlay);
-      player.off('pause', handlePause);
-      player.off('seeked', handleSeeked);
-      player.destroy();
+      // Remove event listeners
+      video.removeEventListener('loadeddata', handleLoadedData);
+      video.removeEventListener('canplay', handleCanPlay);
+      video.removeEventListener('error', handleError);
+      video.removeEventListener('play', handlePlay);
+      video.removeEventListener('pause', handlePause);
+      video.removeEventListener('seeked', handleSeeked);
     };
   }, [lectureInfo.LectureID]);
 
   // Handle keyboard shortcuts for navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't interfere with Plyr's built-in controls
+      const video = videoRef.current;
+      if (!video) return;
+
+      // Don't interfere with inputs
       if (
         e.target instanceof HTMLInputElement ||
         e.target instanceof HTMLTextAreaElement
@@ -180,6 +169,44 @@ export function VideoPlayer({
       }
 
       switch (e.key) {
+        case ' ':
+          e.preventDefault();
+          if (video.paused) {
+            video.play();
+          } else {
+            video.pause();
+          }
+          break;
+        case 'ArrowLeft':
+          e.preventDefault();
+          video.currentTime = Math.max(0, video.currentTime - 10);
+          break;
+        case 'ArrowRight':
+          e.preventDefault();
+          video.currentTime = Math.min(video.duration, video.currentTime + 10);
+          break;
+        case 'ArrowUp':
+          e.preventDefault();
+          video.volume = Math.min(1, video.volume + 0.1);
+          break;
+        case 'ArrowDown':
+          e.preventDefault();
+          video.volume = Math.max(0, video.volume - 0.1);
+          break;
+        case 'f':
+        case 'F':
+          e.preventDefault();
+          if (document.fullscreenElement) {
+            document.exitFullscreen();
+          } else {
+            video.requestFullscreen();
+          }
+          break;
+        case 'm':
+        case 'M':
+          e.preventDefault();
+          video.muted = !video.muted;
+          break;
         case 'n':
         case 'N':
           if (lectureInfo.HasNext && onNavigateNext) {
@@ -211,20 +238,25 @@ export function VideoPlayer({
       {/* Error State */}
       {error && (
         <div className="absolute inset-0 z-10 flex items-center justify-center bg-background">
-          <div className="text-center">
+          <div className="text-center max-w-lg px-4">
             <p className="text-lg text-destructive">{error}</p>
-            <p className="mt-2 text-sm text-muted-foreground">
+            <p className="mt-2 text-sm text-muted-foreground break-all">
               Video Path: {lectureInfo.VideoURL}
             </p>
           </div>
         </div>
       )}
 
-      {/* Video Element */}
-      <div className="flex-1">
-        <video ref={videoRef} className="h-full w-full" crossOrigin="anonymous">
-          <source src={lectureInfo.VideoURL} type="video/mp4" />
-
+      {/* Video Element - Native HTML5 with controls */}
+      <div className="flex-1 flex items-center justify-center bg-black">
+        <video
+          ref={videoRef}
+          className="max-h-full max-w-full"
+          controls
+          autoPlay={false}
+          preload="metadata"
+          src={lectureInfo.VideoURL}
+        >
           {/* Subtitle track */}
           {lectureInfo.SubtitleURL && (
             <track
@@ -235,6 +267,7 @@ export function VideoPlayer({
               default
             />
           )}
+          Your browser does not support the video tag.
         </video>
       </div>
 
