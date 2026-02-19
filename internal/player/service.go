@@ -4,29 +4,42 @@ package player
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"coursefin/internal/database"
 	"coursefin/internal/sqlc"
 )
 
+// encodePathSegments URL-encodes each segment of a path while preserving slashes
+func encodePathSegments(path string) string {
+	segments := strings.Split(path, "/")
+	for i, seg := range segments {
+		segments[i] = url.PathEscape(seg)
+	}
+	return strings.Join(segments, "/")
+}
+
 // Service provides player-related business logic
 type Service struct {
-	db         *database.DB
-	coursesDir string
+	db          *database.DB
+	coursesDir  string
+	videoServer *VideoServer
 }
 
 // NewService creates a new player service
-func NewService(db *database.DB, coursesDir string) *Service {
+func NewService(db *database.DB, coursesDir string, videoServer *VideoServer) *Service {
 	return &Service{
-		db:         db,
-		coursesDir: coursesDir,
+		db:          db,
+		coursesDir:  coursesDir,
+		videoServer: videoServer,
 	}
 }
 
 // GetVideoURL generates the URL for a video lecture
-// Returns the relative path that can be used with the video handler
+// Returns an HTTP URL served by the local video server
 func (s *Service) GetVideoURL(ctx context.Context, lectureID int64) (string, error) {
 	// Get lecture from database
 	lecture, err := s.db.Queries().GetLectureByID(ctx, lectureID)
@@ -34,16 +47,28 @@ func (s *Service) GetVideoURL(ctx context.Context, lectureID int64) (string, err
 		return "", fmt.Errorf("failed to get lecture: %w", err)
 	}
 
-	// lecture.FilePath already contains the full relative path from courses directory
-	// Convert to forward slashes for web URLs (cross-platform compatibility)
-	relativePath := filepath.ToSlash(lecture.FilePath)
-	videoURL := "/videos/" + relativePath
+	// Get course to retrieve the absolute course path
+	course, err := s.db.Queries().GetCourseByID(ctx, lecture.CourseID)
+	if err != nil {
+		return "", fmt.Errorf("failed to get course: %w", err)
+	}
 
-	return videoURL, nil
+	// course.CoursePath is absolute, lecture.FilePath is relative to course folder
+	// Join them to get the full absolute path to the video file
+	fullPath := filepath.Join(course.CoursePath, lecture.FilePath)
+
+	// Use the video server to generate the URL
+	if s.videoServer != nil {
+		return s.videoServer.GetVideoURL(fullPath), nil
+	}
+
+	// Fallback to relative URL (may not work with WebKitGTK)
+	encodedPath := encodePathSegments(fullPath)
+	return "/videos" + encodedPath, nil
 }
 
 // GetSubtitleURL generates the URL for a subtitle file
-// Returns empty string if no subtitle exists
+// Returns empty string if no subtitle exists, otherwise returns an HTTP URL from the video server
 func (s *Service) GetSubtitleURL(ctx context.Context, lectureID int64) (string, error) {
 	// Get lecture from database
 	lecture, err := s.db.Queries().GetLectureByID(ctx, lectureID)
@@ -56,6 +81,12 @@ func (s *Service) GetSubtitleURL(ctx context.Context, lectureID int64) (string, 
 		return "", nil // No subtitles available
 	}
 
+	// Get course to retrieve the absolute course path
+	course, err := s.db.Queries().GetCourseByID(ctx, lecture.CourseID)
+	if err != nil {
+		return "", fmt.Errorf("failed to get course: %w", err)
+	}
+
 	// Query subtitle from subtitles table (prefer English)
 	subtitles, err := s.db.Queries().ListSubtitlesByLecture(ctx, lectureID)
 	if err != nil || len(subtitles) == 0 {
@@ -66,9 +97,18 @@ func (s *Service) GetSubtitleURL(ctx context.Context, lectureID int64) (string, 
 
 		// Try .vtt first, then .srt
 		for _, ext := range []string{".vtt", ".srt"} {
-			subtitlePath := basePathWithoutExt + ext
-			relativePath := filepath.ToSlash(subtitlePath)
-			return "/subtitles/" + relativePath, nil
+			subtitleRelPath := basePathWithoutExt + ext
+			// Build full absolute path
+			fullPath := filepath.Join(course.CoursePath, subtitleRelPath)
+
+			// Use video server if available
+			if s.videoServer != nil {
+				return s.videoServer.GetSubtitleURL(fullPath), nil
+			}
+
+			// Fallback to relative URL
+			encodedPath := encodePathSegments(fullPath)
+			return "/subtitles" + encodedPath, nil
 		}
 
 		return "", nil
@@ -90,9 +130,18 @@ func (s *Service) GetSubtitleURL(ctx context.Context, lectureID int64) (string, 
 		return "", nil
 	}
 
-	// subtitle.FilePath already contains the full relative path
-	relativePath := filepath.ToSlash(selectedSubtitle.FilePath)
-	return "/subtitles/" + relativePath, nil
+	// subtitle.FilePath is relative to course folder
+	// Build full absolute path
+	fullPath := filepath.Join(course.CoursePath, selectedSubtitle.FilePath)
+
+	// Use video server if available
+	if s.videoServer != nil {
+		return s.videoServer.GetSubtitleURL(fullPath), nil
+	}
+
+	// Fallback to relative URL
+	encodedPath := encodePathSegments(fullPath)
+	return "/subtitles" + encodedPath, nil
 }
 
 // UpdatePlaybackProgress updates the playback progress for a lecture
