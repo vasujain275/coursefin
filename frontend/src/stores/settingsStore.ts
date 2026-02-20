@@ -18,6 +18,7 @@ interface SettingsState extends AppSettings {
   setCoursesDirectory: (path: string) => Promise<void>;
   setTheme: (theme: 'light' | 'dark' | 'system') => Promise<void>;
   completeOnboarding: () => Promise<void>;
+  resetToDefaults: () => Promise<void>;
 }
 
 export const useSettingsStore = create<SettingsState>((set, get) => ({
@@ -128,6 +129,46 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       set({ firstRun: false });
     } catch (error) {
       set({ error: error instanceof Error ? error.message : 'Failed to complete onboarding' });
+    }
+  },
+
+  // Reset all settings to defaults (preserves courses directory)
+  resetToDefaults: async () => {
+    try {
+      // Reset to default values
+      const defaults = {
+        theme: 'dark' as const,
+        defaultPlaybackSpeed: 1.0,
+        autoMarkCompleteThreshold: 0.9,
+        subtitleLanguagePreference: 'en_US,en',
+        autoPlayNext: true,
+        resumePrompt: true,
+        thumbnailCacheEnabled: true,
+        scanOnStartup: false,
+      };
+
+      // Update each setting via backend
+      const { SetSettingValue } = await import('@/wailsjs/go/main/App');
+      
+      await Promise.all([
+        SetSettingValue('theme', defaults.theme),
+        SetSettingValue('default_playback_speed', String(defaults.defaultPlaybackSpeed)),
+        SetSettingValue('auto_mark_complete_threshold', String(defaults.autoMarkCompleteThreshold)),
+        SetSettingValue('subtitle_language_preference', defaults.subtitleLanguagePreference),
+        SetSettingValue('auto_play_next', String(defaults.autoPlayNext)),
+        SetSettingValue('resume_prompt', String(defaults.resumePrompt)),
+        SetSettingValue('thumbnail_cache_enabled', String(defaults.thumbnailCacheEnabled)),
+        SetSettingValue('scan_on_startup', String(defaults.scanOnStartup)),
+      ]);
+      
+      // Update local state
+      set(defaults);
+      
+      // Apply theme
+      document.documentElement.classList.add('dark');
+    } catch (error) {
+      set({ error: error instanceof Error ? error.message : 'Failed to reset settings' });
+      throw error;
     }
   },
 }));
