@@ -37,6 +37,8 @@ export function IsFirstRun():Promise<boolean>;
 
 export function IsTrackingProgress():Promise<boolean>;
 
+export function IsWindowFullscreen():Promise<boolean>;
+
 export function ScanLibrary():Promise<course.ScanLibraryResult>;
 
 export function SelectFolderDialog(arg1:string):Promise<string>;
@@ -54,5 +56,7 @@ export function StartLectureWatch(arg1:number):Promise<void>;
 export function StartTrackingProgress(arg1:number):Promise<void>;
 
 export function StopTrackingProgress():Promise<void>;
+
+export function ToggleWindowFullscreen():Promise<void>;
 
 export function UpdateVideoProgress(arg1:number,arg2:number,arg3:number):Promise<void>;

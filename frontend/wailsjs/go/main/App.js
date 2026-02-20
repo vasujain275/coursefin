@@ -66,6 +66,10 @@ export function IsTrackingProgress() {
   return window['go']['main']['App']['IsTrackingProgress']();
 }
 
+export function IsWindowFullscreen() {
+  return window['go']['main']['App']['IsWindowFullscreen']();
+}
+
 export function ScanLibrary() {
   return window['go']['main']['App']['ScanLibrary']();
 }
@@ -100,6 +104,10 @@ export function StartTrackingProgress(arg1) {
 
 export function StopTrackingProgress() {
   return window['go']['main']['App']['StopTrackingProgress']();
+}
+
+export function ToggleWindowFullscreen() {
+  return window['go']['main']['App']['ToggleWindowFullscreen']();
 }
 
 export function UpdateVideoProgress(arg1, arg2, arg3) {

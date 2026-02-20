@@ -415,3 +415,22 @@ func (a *App) SelectFolderDialog(title string) (string, error) {
 	}
 	return path, nil
 }
+
+// =====================================
+// Window Management (Fullscreen Fix)
+// =====================================
+
+// ToggleWindowFullscreen toggles the entire window fullscreen state
+// This bypasses the WebKitGTK HTML5 fullscreen bug that causes black screens
+func (a *App) ToggleWindowFullscreen() {
+	if runtime.WindowIsFullscreen(a.ctx) {
+		runtime.WindowUnfullscreen(a.ctx)
+	} else {
+		runtime.WindowFullscreen(a.ctx)
+	}
+}
+
+// IsWindowFullscreen returns the current window fullscreen state
+func (a *App) IsWindowFullscreen() bool {
+	return runtime.WindowIsFullscreen(a.ctx)
+}
