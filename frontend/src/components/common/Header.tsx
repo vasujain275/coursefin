@@ -2,7 +2,7 @@
 // Header - CourseFin
 // ============================================================================
 // Purpose: Main navigation header component (full-width)
-// Architecture: Logo + Search + Theme Toggle + Settings using semantic colors
+// Architecture: Logo + Search + Settings dropdown with semantic colors
 // ============================================================================
 
 import { Button } from '@/components/ui/button';
@@ -16,7 +16,6 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { BookOpen, HelpCircle, Info, Search, Settings } from 'lucide-react';
-import { ThemeToggle } from './ThemeToggle';
 
 interface HeaderProps {
   onSettings?: () => void;
@@ -29,7 +28,7 @@ export function Header({ onSettings, onSearch }: HeaderProps) {
   };
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-border/50 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60">
+    <header className="sticky top-0 z-50 w-full border-b border-border/50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 wails-drag">
       <div className="flex h-14 items-center gap-4 px-6 w-full">
         {/* Logo & Brand */}
         <div className="flex items-center gap-2.5 flex-shrink-0">
@@ -49,27 +48,23 @@ export function Header({ onSettings, onSearch }: HeaderProps) {
               type="search"
               placeholder="Search courses..."
               onChange={handleSearch}
-              className="pl-9 h-9 bg-muted/30 border-border/50 transition-all focus:bg-muted/50 focus:border-primary/50"
+              className="pl-9 h-9 bg-muted/30 border-border/50 transition-all focus:bg-muted/50 focus:border-primary/50 wails-no-drag"
               aria-label="Search courses"
             />
           </div>
         </div>
 
-        {/* Actions */}
+        {/* Settings Menu */}
         <div className="flex items-center gap-1 flex-shrink-0">
-          {/* Theme Toggle */}
-          <ThemeToggle />
-
-          {/* Settings Menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-9 w-9 text-muted-foreground hover:text-foreground transition-colors"
-                aria-label="Settings"
+                className="h-9 w-9 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors wails-no-drag"
+                aria-label="Settings and options"
               >
-                <Settings className="w-4 h-4" />
+                <Settings className="w-5 h-5" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">

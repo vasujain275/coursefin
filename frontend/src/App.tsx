@@ -8,6 +8,7 @@
 import { LandingPage } from '@/components/landing/LandingPage';
 import { OnboardingFlow } from '@/components/onboarding/OnboardingFlow';
 import { PlayerView } from '@/components/player/PlayerView';
+import { SettingsDialog } from '@/components/settings';
 import { Toaster } from '@/components/ui/sonner';
 import { useSettingsStore } from '@/stores/settingsStore';
 import '@/style.css';
@@ -21,6 +22,7 @@ function App() {
   const { firstRun, isLoading, loadSettings, theme } = useSettingsStore();
   const [currentView, setCurrentView] = useState<View>('landing');
   const [selectedCourseId, setSelectedCourseId] = useState<number | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   // Load settings on mount
   useEffect(() => {
@@ -62,8 +64,7 @@ function App() {
   };
 
   const handleSettings = () => {
-    // TODO: Open settings dialog/panel
-    console.log('Open settings');
+    setSettingsOpen(true);
   };
 
   // Show loading state
@@ -96,6 +97,7 @@ function App() {
           onBack={handleBackToLibrary}
         />
       )}
+      <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
       <Toaster />
     </>
   );

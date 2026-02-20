@@ -5,9 +5,10 @@
 // Architecture: Switches between VideoPlayer and HtmlLectureViewer
 // ============================================================================
 
+import { ThemeToggle } from '@/components/common/ThemeToggle';
 import { Button } from '@/components/ui/button';
 import type { Course, Lecture, Section } from '@/types';
-import { GetCourseWithSections, GetLectureForPlayer } from '@/wailsjs/go/main/App';
+import { GetCourseWithSections, GetLectureForPlayer, IsWindowFullscreen } from '@/wailsjs/go/main/App';
 import { AlertCircle, ArrowLeft, FileText, Loader2, PanelRightClose, PanelRightOpen } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { HtmlLectureViewer } from './HtmlLectureViewer';
@@ -99,6 +100,25 @@ export function PlayerView({ courseId, initialLectureId, onBack }: PlayerViewPro
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | undefined>();
   const [showSidebar, setShowSidebar] = useState(true);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // Poll for fullscreen state changes
+  useEffect(() => {
+    const checkFullscreen = async () => {
+      const fullscreen = await IsWindowFullscreen();
+      setIsFullscreen(fullscreen);
+    };
+
+    // Check immediately
+    void checkFullscreen();
+
+    // Poll every 500ms
+    const interval = setInterval(() => {
+      void checkFullscreen();
+    }, 500);
+
+    return () => clearInterval(interval);
+  }, []);
 
   // Load course data
   useEffect(() => {
@@ -319,43 +339,50 @@ export function PlayerView({ courseId, initialLectureId, onBack }: PlayerViewPro
     <div className="flex h-screen bg-background">
       {/* Main Player Area */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Top Bar */}
-        <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/50 bg-card/80 backdrop-blur-xl">
-          {/* Back Button */}
-          {onBack && (
-            <Button variant="ghost" size="sm" onClick={onBack} className="gap-2 text-muted-foreground hover:text-foreground">
-              <ArrowLeft className="w-4 h-4" />
-              Back
-            </Button>
-          )}
-
-          {/* Course Title */}
-          <div className="flex-1 px-4 text-center">
-            <h1 className="text-sm font-semibold text-foreground line-clamp-1">
-              {course.title}
-            </h1>
-          </div>
-
-          {/* Toggle Sidebar Button */}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setShowSidebar(!showSidebar)}
-            className="gap-2 text-muted-foreground hover:text-foreground"
-          >
-            {showSidebar ? (
-              <>
-                <PanelRightClose className="w-4 h-4" />
-                <span className="hidden sm:inline">Hide</span>
-              </>
-            ) : (
-              <>
-                <PanelRightOpen className="w-4 h-4" />
-                <span className="hidden sm:inline">Content</span>
-              </>
+        {/* Top Bar - Hidden in fullscreen */}
+        {!isFullscreen && (
+          <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/50 bg-card/95 wails-drag">
+            {/* Back Button */}
+            {onBack && (
+              <Button variant="ghost" size="sm" onClick={onBack} className="gap-2 text-muted-foreground hover:text-foreground wails-no-drag">
+                <ArrowLeft className="w-4 h-4" />
+                Back
+              </Button>
             )}
-          </Button>
-        </div>
+
+            {/* Course Title */}
+            <div className="flex-1 px-4 text-center">
+              <h1 className="text-sm font-semibold text-foreground line-clamp-1">
+                {course.title}
+              </h1>
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center gap-1">
+              <ThemeToggle />
+
+              {/* Toggle Sidebar Button */}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowSidebar(!showSidebar)}
+                className="gap-2 text-muted-foreground hover:text-foreground wails-no-drag"
+              >
+                {showSidebar ? (
+                  <>
+                    <PanelRightClose className="w-4 h-4" />
+                    <span className="hidden sm:inline">Hide</span>
+                  </>
+                ) : (
+                  <>
+                    <PanelRightOpen className="w-4 h-4" />
+                    <span className="hidden sm:inline">Content</span>
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        )}
 
         {/* Player Component */}
         <div className="flex-1 overflow-hidden">
@@ -380,8 +407,8 @@ export function PlayerView({ courseId, initialLectureId, onBack }: PlayerViewPro
         </div>
       </div>
 
-      {/* Sidebar */}
-      {showSidebar && course.sections && (
+      {/* Sidebar - Hidden in fullscreen */}
+      {!isFullscreen && showSidebar && course.sections && (
         <div className="w-96 flex-shrink-0 border-l border-border/50">
           <LectureList
             sections={course.sections}

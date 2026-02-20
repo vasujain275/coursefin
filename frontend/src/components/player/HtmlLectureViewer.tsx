@@ -79,7 +79,7 @@ export function HtmlLectureViewer({
       </div>
 
       {/* ── Content ── */}
-      <div className="flex-1 overflow-hidden bg-white">
+      <div className="flex-1 overflow-hidden bg-background">
         {loading && (
           <div className="flex h-full items-center justify-center">
             <div className="flex flex-col items-center gap-3">
@@ -106,7 +106,7 @@ export function HtmlLectureViewer({
             className="w-full h-full border-0"
             // srcdoc= bypasses cross-origin restrictions; allow-scripts needed for quiz interactivity
             sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
-            style={{ background: 'white' }}
+            style={{ background: 'var(--background)' }}
           />
         )}
       </div>

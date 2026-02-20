@@ -3,6 +3,7 @@ import {
     GetVideoResumePosition,
     StartLectureWatch,
     UpdateVideoProgress,
+    ToggleWindowFullscreen,
 } from '@/wailsjs/go/main/App';
 import type { player } from '@/wailsjs/go/models';
 import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
@@ -196,11 +197,7 @@ export function VideoPlayer({
         case 'f':
         case 'F':
           e.preventDefault();
-          if (document.fullscreenElement) {
-            document.exitFullscreen();
-          } else {
-            video.requestFullscreen();
-          }
+          void ToggleWindowFullscreen();
           break;
         case 'm':
         case 'M':
