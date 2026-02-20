@@ -5,13 +5,13 @@
 // Pattern: Zustand store with Wails backend integration
 // ============================================================================
 
-import { create } from 'zustand';
 import type { AppSettings } from '@/types';
+import { create } from 'zustand';
 
 interface SettingsState extends AppSettings {
   isLoading: boolean;
   error: string | null;
-  
+
   // Actions
   loadSettings: () => Promise<void>;
   updateSetting: <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => Promise<void>;
@@ -24,7 +24,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   // Initial state
   firstRun: true,
   coursesDirectory: undefined,
-  theme: 'system',
+  theme: 'dark',
   defaultPlaybackSpeed: 1.0,
   autoMarkCompleteThreshold: 0.9,
   subtitleLanguagePreference: 'en_US,en',
@@ -34,20 +34,20 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   scanOnStartup: false,
   isLoading: false,
   error: null,
-  
+
   // Load all settings from backend
   loadSettings: async () => {
     set({ isLoading: true, error: null });
-    
+
     try {
       // Import Wails bindings dynamically to avoid build-time issues
       const { GetAppSettings, IsFirstRun } = await import('@/wailsjs/go/main/App');
-      
+
       const [settingsMap, firstRun] = await Promise.all([
         GetAppSettings(),
         IsFirstRun()
       ]);
-      
+
       set({
         firstRun,
         coursesDirectory: settingsMap.courses_directory,
@@ -62,31 +62,31 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
         isLoading: false,
       });
     } catch (error) {
-      set({ 
+      set({
         error: error instanceof Error ? error.message : 'Failed to load settings',
-        isLoading: false 
+        isLoading: false
       });
     }
   },
-  
+
   // Update a single setting
   updateSetting: async (key, value) => {
     try {
       const { SetSettingValue } = await import('@/wailsjs/go/main/App');
-      
+
       // Convert the key to snake_case for backend
       const backendKey = key.replace(/([A-Z])/g, '_$1').toLowerCase();
       const backendValue = String(value);
-      
+
       await SetSettingValue(backendKey, backendValue);
-      
+
       // Update local state
       set({ [key]: value });
     } catch (error) {
       set({ error: error instanceof Error ? error.message : 'Failed to update setting' });
     }
   },
-  
+
   // Set courses directory
   setCoursesDirectory: async (path) => {
     try {
@@ -97,14 +97,14 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       set({ error: error instanceof Error ? error.message : 'Failed to set courses directory' });
     }
   },
-  
+
   // Set theme
   setTheme: async (theme) => {
     try {
       const { SetTheme } = await import('@/wailsjs/go/main/App');
       await SetTheme(theme);
       set({ theme });
-      
+
       // Apply theme to document
       if (theme === 'dark') {
         document.documentElement.classList.add('dark');
@@ -119,7 +119,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       set({ error: error instanceof Error ? error.message : 'Failed to set theme' });
     }
   },
-  
+
   // Complete onboarding
   completeOnboarding: async () => {
     try {
