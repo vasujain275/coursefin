@@ -47,7 +47,7 @@ SELECT * FROM lectures WHERE id = ? LIMIT 1;
 -- Purpose: Get lecture with all available subtitle tracks
 -- Returns: Lecture info + JSON array of subtitles
 -- Usage: Player initialization with subtitle selection
-SELECT 
+SELECT
     l.*,
     json_group_array(
         json_object(
@@ -68,7 +68,7 @@ GROUP BY l.id;
 -- name: ListLecturesBySection :many
 -- Purpose: Get all lectures in a section, ordered by lecture_number
 -- Usage: Section view, course navigation
-SELECT * FROM lectures 
+SELECT * FROM lectures
 WHERE section_id = ?
 ORDER BY lecture_number ASC;
 
@@ -78,7 +78,7 @@ ORDER BY lecture_number ASC;
 -- name: ListLecturesByCourse :many
 -- Purpose: Get all lectures across all sections for a course
 -- Usage: Course-wide operations, bulk updates
-SELECT * FROM lectures 
+SELECT * FROM lectures
 WHERE course_id = ?
 ORDER BY section_id, lecture_number ASC;
 
@@ -88,7 +88,7 @@ ORDER BY section_id, lecture_number ASC;
 -- name: ListVideoLecturesByCourse :many
 -- Purpose: Get only playable video lectures
 -- Usage: Video-only views, playback queues
-SELECT * FROM lectures 
+SELECT * FROM lectures
 WHERE course_id = ? AND lecture_type = 'video'
 ORDER BY section_id, lecture_number ASC;
 
@@ -99,8 +99,8 @@ ORDER BY section_id, lecture_number ASC;
 -- Purpose: Find next lecture after current one (for auto-play)
 -- Logic: Next lecture in same section, or first lecture of next section
 -- Usage: Auto-play next feature
-SELECT * FROM lectures 
-WHERE course_id = ? 
+SELECT * FROM lectures
+WHERE course_id = ?
   AND (
     (section_id = ? AND lecture_number > ?)
     OR (section_id > ?)
@@ -115,8 +115,8 @@ LIMIT 1;
 -- Purpose: Find previous lecture before current one
 -- Logic: Previous lecture in same section, or last lecture of previous section
 -- Usage: Previous button in player
-SELECT * FROM lectures 
-WHERE course_id = ? 
+SELECT * FROM lectures
+WHERE course_id = ?
   AND (
     (section_id = ? AND lecture_number < ?)
     OR (section_id < ?)
@@ -131,7 +131,7 @@ LIMIT 1;
 -- Purpose: Get lecture combined with user's watch progress
 -- Returns: Lecture + progress data in one query
 -- Usage: Resume functionality, UI progress indicators
-SELECT 
+SELECT
     l.*,
     p.id as progress_id,
     p.watched_duration,
@@ -150,7 +150,7 @@ WHERE l.id = ?;
 -- Purpose: Get section's lectures with completion status
 -- Returns: Lectures with progress indicators
 -- Usage: Section view with checkmarks for completed lectures
-SELECT 
+SELECT
     l.*,
     COALESCE(p.completed, 0) as is_completed,
     p.last_position,
@@ -168,7 +168,7 @@ ORDER BY l.lecture_number ASC;
 -- Usage: Resume course from where user left off
 SELECT l.* FROM lectures l
 LEFT JOIN progress p ON l.id = p.lecture_id
-WHERE l.course_id = ? 
+WHERE l.course_id = ?
   AND l.lecture_type = 'video'
   AND (p.completed IS NULL OR p.completed = 0)
 ORDER BY l.section_id ASC, l.lecture_number ASC
@@ -196,7 +196,7 @@ SELECT COUNT(*) FROM lectures WHERE section_id = ?;
 -- name: CountLecturesByType :one
 -- Purpose: Count lectures of specific type in a course
 -- Usage: Statistics (e.g., "23 videos, 5 quizzes, 12 resources")
-SELECT COUNT(*) FROM lectures 
+SELECT COUNT(*) FROM lectures
 WHERE course_id = ? AND lecture_type = ?;
 
 -- ============================================================================
@@ -206,7 +206,7 @@ WHERE course_id = ? AND lecture_type = ?;
 -- Purpose: Aggregate statistics for all lecture types
 -- Returns: Counts per type + total duration
 -- Usage: Course detail view statistics
-SELECT 
+SELECT
     COUNT(*) as total_lectures,
     COUNT(CASE WHEN lecture_type = 'video' THEN 1 END) as video_count,
     COUNT(CASE WHEN lecture_type = 'text' THEN 1 END) as text_count,
@@ -214,7 +214,7 @@ SELECT
     COUNT(CASE WHEN lecture_type = 'document' THEN 1 END) as document_count,
     SUM(CASE WHEN lecture_type = 'video' THEN duration ELSE 0 END) as total_video_duration,
     COUNT(CASE WHEN has_subtitles = 1 THEN 1 END) as lectures_with_subtitles
-FROM lectures 
+FROM lectures
 WHERE course_id = ?;
 
 -- ============================================================================
@@ -282,3 +282,13 @@ DELETE FROM lectures WHERE section_id = ?;
 -- Purpose: Remove all lectures for a course
 -- Usage: Course removal (normally handled by CASCADE)
 DELETE FROM lectures WHERE course_id = ?;
+
+-- ============================================================================
+-- READ: Get lecture by file path and course
+-- ============================================================================
+-- name: GetLectureByFilePath :one
+-- Purpose: Find existing lecture during smart sync (re-scan)
+-- Usage: Check if lecture already exists before creating
+SELECT * FROM lectures
+WHERE course_id = ? AND file_path = ?
+LIMIT 1;

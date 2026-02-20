@@ -37,6 +37,7 @@ type LectureMetadata struct {
 	Title         string
 	LectureNumber int
 	VideoPath     string // Relative to courses_directory
+	LectureType   string // "video" or "article"
 	Duration      int64  // In seconds (0 if unknown)
 	SubtitlePaths []string
 }
@@ -44,8 +45,9 @@ type LectureMetadata struct {
 // Section folder pattern: "1 - Introduction AWS Certified..." or "10 - Route 53"
 var sectionFolderRegex = regexp.MustCompile(`^(\d+)\s*-\s*(.+)$`)
 
-// Lecture file pattern: "1. Course Introduction....mp4" or "001. Title.mp4"
-var lectureFileRegex = regexp.MustCompile(`^(\d+)\.?\s*(.+)\.(mp4|mkv|webm|avi)$`)
+// Lecture file pattern: matches both video and html files
+// Examples: "1. Course Introduction.mp4", "2. Notes.html"
+var lectureFileRegex = regexp.MustCompile(`^(\d+)\.?\s*(.+)\.(mp4|mkv|webm|avi|html)$`)
 
 // ScanCourseFolder scans a course directory and extracts metadata
 // coursePath: absolute path to course folder
@@ -164,13 +166,23 @@ func scanSectionLectures(sectionPath string, coursePath string) ([]LectureMetada
 			return nil, fmt.Errorf("failed to calculate relative path: %w", err)
 		}
 
-		// Find matching subtitle files
-		subtitlePaths := findSubtitles(sectionPath, coursePath, entry.Name())
+		// Find matching subtitle files (only for video lectures)
+		var subtitlePaths []string
+		if ext != "html" {
+			subtitlePaths = findSubtitles(sectionPath, coursePath, entry.Name())
+		}
+
+		// Determine lecture type from extension
+		lectureType := "video"
+		if ext == "html" {
+			lectureType = "text"
+		}
 
 		lectures = append(lectures, LectureMetadata{
 			Title:         lectureTitle,
 			LectureNumber: lectureNumber,
 			VideoPath:     videoRelPath,
+			LectureType:   lectureType,
 			Duration:      0, // Duration will be extracted later by ffprobe if needed
 			SubtitlePaths: subtitlePaths,
 		})
@@ -190,8 +202,7 @@ func scanSectionLectures(sectionPath string, coursePath string) ([]LectureMetada
 // Examples:
 //
 //	"1. Course Introduction.mp4" → (1, "Course Introduction", "mp4")
-//	"001. Title.mp4" → (1, "Title", "mp4")
-//	"10 Advanced Topics.mkv" → (10, "Advanced Topics", "mkv")
+//	"2. Notes.html" → (2, "Notes", "html")
 func parseLectureFileName(fileName string) (int, string, string) {
 	matches := lectureFileRegex.FindStringSubmatch(fileName)
 	if len(matches) != 4 {
@@ -204,7 +215,7 @@ func parseLectureFileName(fileName string) (int, string, string) {
 	}
 
 	lectureTitle := strings.TrimSpace(matches[2])
-	ext := matches[3]
+	ext := strings.ToLower(matches[3])
 
 	return lectureNumber, lectureTitle, ext
 }

@@ -35,7 +35,7 @@ SELECT * FROM sections WHERE id = ? LIMIT 1;
 -- name: ListSectionsByCourse :many
 -- Purpose: Get all sections for a course, ordered by section_number
 -- Usage: Course structure display, navigation
-SELECT * FROM sections 
+SELECT * FROM sections
 WHERE course_id = ?
 ORDER BY section_number ASC;
 
@@ -46,7 +46,7 @@ ORDER BY section_number ASC;
 -- Purpose: Get section with count of lectures it contains
 -- Returns: Section + lecture count
 -- Usage: Section headers showing "Section 1: Title (12 lectures)"
-SELECT 
+SELECT
     s.*,
     COUNT(l.id) as lecture_count,
     SUM(CASE WHEN l.lecture_type = 'video' THEN l.duration ELSE 0 END) as total_duration
@@ -62,7 +62,7 @@ GROUP BY s.id;
 -- Purpose: Get all sections for a course with lecture counts
 -- Returns: Sections with lecture counts and durations
 -- Usage: Course structure overview
-SELECT 
+SELECT
     s.*,
     COUNT(l.id) as lecture_count,
     SUM(CASE WHEN l.lecture_type = 'video' THEN l.duration ELSE 0 END) as total_duration
@@ -79,11 +79,11 @@ ORDER BY s.section_number ASC;
 -- Purpose: Get section with completion statistics
 -- Returns: Section + completed/total lectures
 -- Usage: Section progress indicators
-SELECT 
+SELECT
     s.*,
     COUNT(l.id) as total_lectures,
     COUNT(CASE WHEN p.completed = 1 THEN 1 END) as completed_lectures,
-    CAST(COUNT(CASE WHEN p.completed = 1 THEN 1 END) AS REAL) / 
+    CAST(COUNT(CASE WHEN p.completed = 1 THEN 1 END) AS REAL) /
         NULLIF(COUNT(l.id), 0) * 100 as completion_percentage
 FROM sections s
 LEFT JOIN lectures l ON s.id = l.section_id
@@ -98,11 +98,11 @@ GROUP BY s.id;
 -- Purpose: Get all sections for course with completion stats
 -- Returns: Sections with progress percentages
 -- Usage: Course view with section-level progress bars
-SELECT 
+SELECT
     s.*,
     COUNT(l.id) as total_lectures,
     COUNT(CASE WHEN p.completed = 1 THEN 1 END) as completed_lectures,
-    CAST(COUNT(CASE WHEN p.completed = 1 THEN 1 END) AS REAL) / 
+    CAST(COUNT(CASE WHEN p.completed = 1 THEN 1 END) AS REAL) /
         NULLIF(COUNT(l.id), 0) * 100 as completion_percentage
 FROM sections s
 LEFT JOIN lectures l ON s.id = l.section_id
@@ -117,7 +117,7 @@ ORDER BY s.section_number ASC;
 -- name: GetNextSection :one
 -- Purpose: Find next section after current one
 -- Usage: Navigation, auto-advance to next section
-SELECT * FROM sections 
+SELECT * FROM sections
 WHERE course_id = ? AND section_number > ?
 ORDER BY section_number ASC
 LIMIT 1;
@@ -128,7 +128,7 @@ LIMIT 1;
 -- name: GetPreviousSection :one
 -- Purpose: Find previous section before current one
 -- Usage: Navigation
-SELECT * FROM sections 
+SELECT * FROM sections
 WHERE course_id = ? AND section_number < ?
 ORDER BY section_number DESC
 LIMIT 1;
@@ -179,3 +179,13 @@ DELETE FROM sections WHERE id = ?;
 -- Purpose: Remove all sections for a course
 -- Usage: Course removal (normally handled by CASCADE)
 DELETE FROM sections WHERE course_id = ?;
+
+-- ============================================================================
+-- READ: Get section by course and section number
+-- ============================================================================
+-- name: GetSectionByCourseAndNumber :one
+-- Purpose: Find existing section during smart sync (re-scan)
+-- Usage: Check if section already exists before creating
+SELECT * FROM sections
+WHERE course_id = ? AND section_number = ?
+LIMIT 1;
