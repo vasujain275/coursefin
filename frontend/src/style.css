@@ -300,3 +300,59 @@
     }
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   Plyr.js theming — map Plyr's CSS variables to our design tokens
+   Scoped to .plyr-container to avoid leaking into other elements.
+   ═══════════════════════════════════════════════════════════════ */
+.plyr-container {
+  /* Accent / interactive colour (progress bar fill, focus rings, range thumbs) */
+  --plyr-color-main: var(--primary);
+
+  /* Player background */
+  --plyr-video-background: var(--background);
+
+  /* Border radius — use the app's smallest radius token */
+  --plyr-control-radius: var(--radius-sm);
+
+  /* Typography */
+  --plyr-font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+  /* Badge (e.g. quality labels) */
+  --plyr-badge-background: var(--muted);
+  --plyr-badge-text-color: var(--muted-foreground);
+  --plyr-badge-border-radius: var(--radius-sm);
+
+  /* Settings / speed menu */
+  --plyr-menu-background: var(--card);
+  --plyr-menu-color: var(--card-foreground);
+  --plyr-menu-border-color: var(--border);
+  --plyr-menu-border-shadow-color: var(--border);
+  --plyr-menu-arrow-color: var(--card);
+
+  /* Tooltips */
+  --plyr-tooltip-background: var(--card);
+  --plyr-tooltip-color: var(--card-foreground);
+  --plyr-tooltip-border-radius: var(--radius-sm);
+  --plyr-tooltip-shadow: 0 2px 8px color-mix(in oklch, var(--foreground) 12%, transparent);
+
+  /* Captions — semi-transparent black overlay is the universal standard */
+  --plyr-captions-background: rgba(0, 0, 0, 0.75);
+  --plyr-captions-text-color: #ffffff;
+
+  /* Range (progress + volume) track */
+  --plyr-range-track-height: 4px;
+  --plyr-range-thumb-height: 14px;
+  --plyr-range-thumb-background: var(--primary);
+  --plyr-range-thumb-shadow: 0 1px 3px color-mix(in oklch, var(--foreground) 15%, transparent);
+}
+
+/* Make the Plyr player fill the container */
+.plyr-container .plyr {
+  width: 100%;
+  height: 100%;
+}
+
+.plyr-container .plyr--video {
+  height: 100%;
+}

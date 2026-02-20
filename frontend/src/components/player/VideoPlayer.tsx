@@ -8,6 +8,8 @@ import {
 import type { player } from '@/wailsjs/go/models';
 import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import PlyrComponent, { type APITypes, type PlyrProps } from 'plyr-react';
+import 'plyr/dist/plyr.css';
 
 interface VideoPlayerProps {
   lectureInfo: player.LectureInfo;
@@ -15,103 +17,143 @@ interface VideoPlayerProps {
   onNavigatePrevious?: () => void;
 }
 
+// Plyr options — stable reference (defined outside component to avoid
+// re-creating on every render, which would cause Plyr to re-initialise).
+const PLYR_OPTIONS: PlyrProps['options'] = {
+  controls: [
+    'play-large',
+    'play',
+    'rewind',
+    'fast-forward',
+    'progress',
+    'current-time',
+    'duration',
+    'mute',
+    'volume',
+    'captions',
+    'settings',
+    'fullscreen',
+  ],
+  // We manage global keyboard shortcuts ourselves below so that navigation
+  // keys (N/P) don't get swallowed by Plyr.  Plyr still handles shortcuts
+  // when the player itself is focused.
+  keyboard: { focused: true, global: false },
+  captions: { active: true, language: 'en', update: true },
+  settings: ['captions', 'speed', 'quality'],
+  speed: { selected: 1, options: [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2] },
+  // Rewind / fast-forward by 10 s to match existing keyboard shortcut behaviour
+  seekTime: 10,
+};
+
 export function VideoPlayer({
   lectureInfo,
   onNavigateNext,
   onNavigatePrevious,
 }: VideoPlayerProps) {
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const plyrRef = useRef<APITypes>(null);
   const progressIntervalRef = useRef<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Build the Plyr source descriptor from lectureInfo.
+  // Plyr re-initialises whenever this object reference changes, so we
+  // compute it inline — lectureInfo identity already changes per lecture.
+  const plyrSource: PlyrProps['source'] = {
+    type: 'video',
+    sources: [{ src: lectureInfo.VideoURL }],
+    ...(lectureInfo.SubtitleURL
+      ? {
+          tracks: [
+            {
+              kind: 'captions',
+              label: 'English',
+              srcLang: 'en',
+              src: lectureInfo.SubtitleURL,
+              default: true,
+            },
+          ],
+        }
+      : {}),
+  };
+
+  // Helper — safely returns the underlying HTMLVideoElement if Plyr is ready.
+  // Plyr's TypeScript types don't expose a .media property, so we query the
+  // container element for the <video> tag instead.
+  const getVideo = (): HTMLVideoElement | null => {
+    const container = plyrRef.current?.plyr?.elements?.container;
+    if (!container) return null;
+    const el = container.querySelector('video');
+    return el instanceof HTMLVideoElement ? el : null;
+  };
+
+  // Main effect: set up event listeners, load resume position, start session.
+  // Re-runs only when the lecture ID changes (same as before).
   useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
+    // Reset state for new video
+    setIsLoading(true);
+    setError(null);
 
     console.log('[VideoPlayer] Initializing with lectureInfo:', lectureInfo);
     console.log('[VideoPlayer] Video URL:', lectureInfo.VideoURL);
     console.log('[VideoPlayer] Subtitle URL:', lectureInfo.SubtitleURL);
 
-    // Reset state for new video
-    setIsLoading(true);
-    setError(null);
+    // --- event handlers ---
 
-    // Load resume position
-    const loadResumePosition = async () => {
-      try {
-        const resumeAt = await GetVideoResumePosition(lectureInfo.LectureID);
-        if (resumeAt > 0 && video) {
-          video.currentTime = resumeAt;
-        }
-      } catch (err) {
-        console.error('Failed to load resume position:', err);
-      }
-    };
-
-    // Start watch session
-    const startSession = async () => {
-      try {
-        await StartLectureWatch(lectureInfo.LectureID);
-      } catch (err) {
-        console.error('Failed to start watch session:', err);
-      }
-    };
-
-    // Handle video loaded
     const handleLoadedData = () => {
       console.log('[VideoPlayer] Video loaded successfully');
       setIsLoading(false);
       void loadResumePosition();
     };
 
-    // Handle video can play
     const handleCanPlay = () => {
       console.log('[VideoPlayer] Video can play');
       setIsLoading(false);
     };
 
-    // Handle video error
     const handleError = () => {
-      const videoError = video.error;
+      const video = getVideo();
+      const videoError = video?.error ?? null;
       console.error('[VideoPlayer] Video error:', videoError);
-      console.error('[VideoPlayer] Video src:', video.src);
+      console.error('[VideoPlayer] Video src:', video?.src);
       setIsLoading(false);
-      setError(`Failed to load video: ${videoError?.message || 'Unknown error'}`);
+      setError(`Failed to load video: ${videoError?.message ?? 'Unknown error'}`);
     };
 
-    // Handle play event
     const handlePlay = () => {
-      // Start progress tracking interval (every 5 seconds)
-      if (progressIntervalRef.current) {
-        clearInterval(progressIntervalRef.current);
-      }
-
+      if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
       progressIntervalRef.current = window.setInterval(() => {
         void saveProgress();
       }, 5000);
     };
 
-    // Handle pause event
     const handlePause = () => {
-      // Save progress immediately when pausing
       void saveProgress();
-
-      // Clear interval
       if (progressIntervalRef.current) {
         clearInterval(progressIntervalRef.current);
         progressIntervalRef.current = null;
       }
     };
 
-    // Handle seeking
     const handleSeeked = () => {
-      // Save progress after seeking
       void saveProgress();
     };
 
-    // Save progress function
+    // --- async helpers ---
+
+    const loadResumePosition = async () => {
+      try {
+        const resumeAt = await GetVideoResumePosition(lectureInfo.LectureID);
+        if (resumeAt > 0) {
+          const video = getVideo();
+          if (video) video.currentTime = resumeAt;
+        }
+      } catch (err) {
+        console.error('Failed to load resume position:', err);
+      }
+    };
+
     const saveProgress = async () => {
+      const video = getVideo();
       if (!video) return;
       try {
         await UpdateVideoProgress(
@@ -124,75 +166,100 @@ export function VideoPlayer({
       }
     };
 
-    // Add event listeners
-    video.addEventListener('loadeddata', handleLoadedData);
-    video.addEventListener('canplay', handleCanPlay);
-    video.addEventListener('error', handleError);
-    video.addEventListener('play', handlePlay);
-    video.addEventListener('pause', handlePause);
-    video.addEventListener('seeked', handleSeeked);
-
-    // Start watch session
-    void startSession();
-
-    // Cleanup
-    return () => {
-      // Save final progress
-      void saveProgress();
-
-      // Clear interval
-      if (progressIntervalRef.current) {
-        clearInterval(progressIntervalRef.current);
+    // Plyr may not have rendered into the DOM yet on the very first tick, so
+    // we defer attachment by one frame to ensure the <video> element exists.
+    let video: HTMLVideoElement | null = null;
+    const attachListeners = () => {
+      video = getVideo();
+      if (!video) {
+        // Retry once after a short delay — Plyr initialises asynchronously
+        const id = window.setTimeout(() => {
+          video = getVideo();
+          if (video) {
+            video.addEventListener('loadeddata', handleLoadedData);
+            video.addEventListener('canplay', handleCanPlay);
+            video.addEventListener('error', handleError);
+            video.addEventListener('play', handlePlay);
+            video.addEventListener('pause', handlePause);
+            video.addEventListener('seeked', handleSeeked);
+          }
+        }, 100);
+        return () => window.clearTimeout(id);
       }
 
-      // Remove event listeners
-      video.removeEventListener('loadeddata', handleLoadedData);
-      video.removeEventListener('canplay', handleCanPlay);
-      video.removeEventListener('error', handleError);
-      video.removeEventListener('play', handlePlay);
-      video.removeEventListener('pause', handlePause);
-      video.removeEventListener('seeked', handleSeeked);
+      video.addEventListener('loadeddata', handleLoadedData);
+      video.addEventListener('canplay', handleCanPlay);
+      video.addEventListener('error', handleError);
+      video.addEventListener('play', handlePlay);
+      video.addEventListener('pause', handlePause);
+      video.addEventListener('seeked', handleSeeked);
+      return null;
     };
+
+    const cleanupTimeout = attachListeners();
+
+    // Start watch session
+    void StartLectureWatch(lectureInfo.LectureID).catch((err) =>
+      console.error('Failed to start watch session:', err),
+    );
+
+    return () => {
+      cleanupTimeout?.();
+
+      // Save final position before unmounting
+      void saveProgress();
+
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+        progressIntervalRef.current = null;
+      }
+
+      if (video) {
+        video.removeEventListener('loadeddata', handleLoadedData);
+        video.removeEventListener('canplay', handleCanPlay);
+        video.removeEventListener('error', handleError);
+        video.removeEventListener('play', handlePlay);
+        video.removeEventListener('pause', handlePause);
+        video.removeEventListener('seeked', handleSeeked);
+      }
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lectureInfo.LectureID]);
 
-  // Handle keyboard shortcuts for navigation
+  // Global keyboard shortcuts (lecture navigation + player controls)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      const video = videoRef.current;
-      if (!video) return;
-
       // Don't interfere with inputs
       if (
         e.target instanceof HTMLInputElement ||
         e.target instanceof HTMLTextAreaElement
-      ) {
-        return;
-      }
+      ) return;
+
+      const video = getVideo();
 
       switch (e.key) {
         case ' ':
           e.preventDefault();
-          if (video.paused) {
-            video.play();
-          } else {
-            video.pause();
+          if (video) {
+            if (video.paused) void video.play();
+            else video.pause();
           }
           break;
         case 'ArrowLeft':
           e.preventDefault();
-          video.currentTime = Math.max(0, video.currentTime - 10);
+          if (video) video.currentTime = Math.max(0, video.currentTime - 10);
           break;
         case 'ArrowRight':
           e.preventDefault();
-          video.currentTime = Math.min(video.duration, video.currentTime + 10);
+          if (video) video.currentTime = Math.min(video.duration, video.currentTime + 10);
           break;
         case 'ArrowUp':
           e.preventDefault();
-          video.volume = Math.min(1, video.volume + 0.1);
+          if (video) video.volume = Math.min(1, video.volume + 0.1);
           break;
         case 'ArrowDown':
           e.preventDefault();
-          video.volume = Math.max(0, video.volume - 0.1);
+          if (video) video.volume = Math.max(0, video.volume - 0.1);
           break;
         case 'f':
         case 'F':
@@ -202,19 +269,15 @@ export function VideoPlayer({
         case 'm':
         case 'M':
           e.preventDefault();
-          video.muted = !video.muted;
+          if (video) video.muted = !video.muted;
           break;
         case 'n':
         case 'N':
-          if (lectureInfo.HasNext && onNavigateNext) {
-            onNavigateNext();
-          }
+          if (lectureInfo.HasNext && onNavigateNext) onNavigateNext();
           break;
         case 'p':
         case 'P':
-          if (lectureInfo.HasPrevious && onNavigatePrevious) {
-            onNavigatePrevious();
-          }
+          if (lectureInfo.HasPrevious && onNavigatePrevious) onNavigatePrevious();
           break;
       }
     };
@@ -244,28 +307,13 @@ export function VideoPlayer({
         </div>
       )}
 
-      {/* Video Element - Native HTML5 with controls */}
-      <div className="flex-1 flex items-center justify-center bg-black">
-        <video
-          ref={videoRef}
-          className="max-h-full max-w-full"
-          controls
-          autoPlay={false}
-          preload="metadata"
-          src={lectureInfo.VideoURL}
-        >
-          {/* Subtitle track */}
-          {lectureInfo.SubtitleURL && (
-            <track
-              kind="captions"
-              label="English"
-              srcLang="en"
-              src={lectureInfo.SubtitleURL}
-              default
-            />
-          )}
-          Your browser does not support the video tag.
-        </video>
+      {/* Plyr video player */}
+      <div className="flex-1 flex items-center justify-center bg-black plyr-container">
+        <PlyrComponent
+          ref={plyrRef}
+          source={plyrSource}
+          options={PLYR_OPTIONS}
+        />
       </div>
 
       {/* Navigation Controls */}
