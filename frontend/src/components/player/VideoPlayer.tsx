@@ -1,12 +1,12 @@
-import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import {
-  UpdateVideoProgress,
-  StartLectureWatch,
-  GetVideoResumePosition,
+    GetVideoResumePosition,
+    StartLectureWatch,
+    UpdateVideoProgress,
 } from '@/wailsjs/go/main/App';
 import type { player } from '@/wailsjs/go/models';
+import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 
 interface VideoPlayerProps {
   lectureInfo: player.LectureInfo;
@@ -240,7 +240,7 @@ export function VideoPlayer({
         <div className="absolute inset-0 z-10 flex items-center justify-center bg-background">
           <div className="text-center max-w-lg px-4">
             <p className="text-lg text-destructive">{error}</p>
-            <p className="mt-2 text-sm text-muted-foreground break-all">
+            <p className="mt-2 text-sm text-muted-foreground mono break-all">
               Video Path: {lectureInfo.VideoURL}
             </p>
           </div>
@@ -272,7 +272,7 @@ export function VideoPlayer({
       </div>
 
       {/* Navigation Controls */}
-      <div className="flex items-center justify-between border-t border-border bg-card p-4">
+      <div className="flex items-center justify-between border-t border-border/50 bg-card/80 backdrop-blur-xl p-4">
         {/* Previous Button */}
         <Button
           variant="outline"
@@ -280,8 +280,9 @@ export function VideoPlayer({
           onClick={onNavigatePrevious}
           disabled={!lectureInfo.HasPrevious}
           aria-label="Previous lecture (P)"
+          className="gap-2 border-border/50"
         >
-          <ChevronLeft className="mr-2 h-4 w-4" />
+          <ChevronLeft className="h-4 w-4" />
           Previous
         </Button>
 
@@ -304,9 +305,10 @@ export function VideoPlayer({
           onClick={onNavigateNext}
           disabled={!lectureInfo.HasNext}
           aria-label="Next lecture (N)"
+          className="gap-2 border-border/50"
         >
           Next
-          <ChevronRight className="ml-2 h-4 w-4" />
+          <ChevronRight className="h-4 w-4" />
         </Button>
       </div>
     </div>

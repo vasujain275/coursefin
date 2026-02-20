@@ -252,6 +252,16 @@ func (a *App) GetLectureForPlayer(lectureID int64) (*player.LectureInfo, error) 
 	return a.playerSvc.GetLectureInfo(a.ctx, lectureID)
 }
 
+// GetHtmlLectureContent reads an HTML lecture file and returns its content as a string.
+// This is used by the frontend's HtmlLectureViewer via iframe srcdoc= so that the HTML
+// is injected directly without a cross-origin HTTP request (wails:// → http://127.0.0.1).
+func (a *App) GetHtmlLectureContent(lectureID int64) (string, error) {
+	if a.courseSvc == nil {
+		return "", fmt.Errorf("course service not initialized")
+	}
+	return a.courseSvc.GetHtmlLectureContent(a.ctx, lectureID)
+}
+
 // UpdateVideoProgress saves playback progress from frontend
 func (a *App) UpdateVideoProgress(lectureID int64, position float64, duration float64) error {
 	if a.playerSvc == nil {

@@ -542,7 +542,8 @@ func (h *VideoHandler) serveSubtitle(w http.ResponseWriter, r *http.Request, enc
 	w.Write(convertedContent)
 }
 
-// getVideoContentType returns the MIME type for a video file extension
+// getVideoContentType returns the MIME type for a given file extension.
+// The function handles both video formats and HTML lecture files.
 func getVideoContentType(ext string) string {
 	switch ext {
 	case ".mp4":
@@ -559,8 +560,10 @@ func getVideoContentType(ext string) string {
 		return "video/quicktime"
 	case ".m4v":
 		return "video/x-m4v"
+	case ".html", ".htm":
+		return "text/html; charset=utf-8"
 	default:
-		return "video/mp4" // Default to MP4
+		return "application/octet-stream"
 	}
 }
 

@@ -5,14 +5,14 @@
 // Architecture: Switches between VideoPlayer and HtmlLectureViewer
 // ============================================================================
 
-import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { VideoPlayer } from './VideoPlayer';
+import type { Course, Lecture, Section } from '@/types';
+import { GetCourseWithSections, GetLectureForPlayer } from '@/wailsjs/go/main/App';
+import { AlertCircle, ArrowLeft, FileText, Loader2, PanelRightClose, PanelRightOpen } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { HtmlLectureViewer } from './HtmlLectureViewer';
 import { LectureList } from './LectureList';
-import { GetCourseWithSections, GetCoursesDirectory, GetLectureForPlayer } from '@/wailsjs/go/main/App';
-import type { Course, Lecture, Section } from '@/types';
-import { useSettingsStore } from '@/stores/settingsStore';
+import { VideoPlayer } from './VideoPlayer';
 
 interface PlayerViewProps {
   courseId: number;
@@ -29,12 +29,12 @@ interface VideoPlayerWrapperProps {
   onNavigatePrevious: () => void;
 }
 
-function VideoPlayerWrapper({ 
-  lectureId, 
-  hasNext, 
-  hasPrevious, 
-  onNavigateNext, 
-  onNavigatePrevious 
+function VideoPlayerWrapper({
+  lectureId,
+  hasNext,
+  hasPrevious,
+  onNavigateNext,
+  onNavigatePrevious
 }: VideoPlayerWrapperProps) {
   const [lectureInfo, setLectureInfo] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -56,14 +56,17 @@ function VideoPlayerWrapper({
         setLoading(false);
       }
     };
-    
+
     void loadLectureInfo();
   }, [lectureId, hasNext, hasPrevious]);
 
   if (loading) {
     return (
       <div className="flex h-full items-center justify-center">
-        <p className="text-sm text-muted-foreground">Loading video...</p>
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="h-8 w-8 text-primary animate-spin" />
+          <p className="text-sm text-muted-foreground">Loading video...</p>
+        </div>
       </div>
     );
   }
@@ -72,6 +75,7 @@ function VideoPlayerWrapper({
     return (
       <div className="flex h-full items-center justify-center">
         <div className="text-center space-y-2">
+          <AlertCircle className="w-10 h-10 text-destructive mx-auto" />
           <p className="text-lg font-medium text-destructive">Failed to Load Video</p>
           <p className="text-sm text-muted-foreground">{error}</p>
         </div>
@@ -88,13 +92,13 @@ function VideoPlayerWrapper({
   );
 }
 
+
 export function PlayerView({ courseId, initialLectureId, onBack }: PlayerViewProps) {
   const [course, setCourse] = useState<Course | null>(null);
   const [currentLecture, setCurrentLecture] = useState<Lecture | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | undefined>();
   const [showSidebar, setShowSidebar] = useState(true);
-  const [coursesDir, setCoursesDir] = useState<string>('');
 
   // Load course data
   useEffect(() => {
@@ -102,23 +106,18 @@ export function PlayerView({ courseId, initialLectureId, onBack }: PlayerViewPro
       try {
         setIsLoading(true);
         console.log('[PlayerView] Loading course:', courseId);
-        
-        // Get courses directory first
-        const dir = await GetCoursesDirectory();
-        console.log('[PlayerView] Courses directory:', dir);
-        setCoursesDir(dir);
-        
+
         const courseData = await GetCourseWithSections(courseId);
         console.log('[PlayerView] Course data received:', courseData);
-        
+
         if (!courseData) {
           throw new Error('No course data returned');
         }
-        
+
         if (!courseData.sections || courseData.sections.length === 0) {
           throw new Error('Course has no sections');
         }
-        
+
         // Convert backend data to frontend types
         const convertedCourse: Course = {
           id: courseData.id,
@@ -133,7 +132,7 @@ export function PlayerView({ courseId, initialLectureId, onBack }: PlayerViewPro
           totalLectures: courseData.total_lectures,
           createdAt: courseData.created_at,
           updatedAt: courseData.updated_at,
-          sections: courseData.sections.map((section, sectionIdx) => {
+          sections: courseData.sections.map((section: any, sectionIdx: number) => {
             const convertedSection: Section = {
               id: section.id,
               courseId: section.course_id,
@@ -142,7 +141,7 @@ export function PlayerView({ courseId, initialLectureId, onBack }: PlayerViewPro
               orderIndex: sectionIdx,
               description: section.description,
               createdAt: section.created_at,
-              lectures: section.lectures.map((lecture, lectureIdx) => {
+              lectures: section.lectures.map((lecture: any, lectureIdx: number) => {
                 const convertedLecture: Lecture = {
                   id: lecture.id,
                   sectionId: lecture.section_id,
@@ -154,7 +153,7 @@ export function PlayerView({ courseId, initialLectureId, onBack }: PlayerViewPro
                   isQuiz: lecture.is_quiz,
                   isDownloadable: lecture.is_downloadable,
                   filePath: lecture.file_path,
-                  subtitlePath: undefined, // Will be populated from subtitles table later
+                  subtitlePath: undefined,
                   originalFilename: lecture.original_filename,
                   resourcesPath: lecture.resources_path,
                   fileSize: lecture.file_size,
@@ -162,7 +161,7 @@ export function PlayerView({ courseId, initialLectureId, onBack }: PlayerViewPro
                   videoCodec: lecture.video_codec,
                   resolution: lecture.resolution,
                   hasSubtitles: lecture.has_subtitles,
-                  isCompleted: false, // Will be populated from progress later
+                  isCompleted: false,
                   createdAt: lecture.created_at,
                 };
                 return convertedLecture;
@@ -171,10 +170,10 @@ export function PlayerView({ courseId, initialLectureId, onBack }: PlayerViewPro
             return convertedSection;
           }),
         };
-        
+
         console.log('[PlayerView] Converted course:', convertedCourse);
         setCourse(convertedCourse);
-        
+
         // Set initial lecture
         if (initialLectureId) {
           const lecture = findLectureById(convertedCourse, initialLectureId);
@@ -185,7 +184,7 @@ export function PlayerView({ courseId, initialLectureId, onBack }: PlayerViewPro
           console.log('[PlayerView] Using first lecture:', firstLecture);
           setCurrentLecture(firstLecture);
         }
-        
+
         setIsLoading(false);
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Failed to load course data';
@@ -255,18 +254,21 @@ export function PlayerView({ courseId, initialLectureId, onBack }: PlayerViewPro
   };
 
   const isVideoLecture = (lecture: Lecture) => {
-    return lecture.filePath.toLowerCase().endsWith('.mp4');
+    // Primary check: use the DB-sourced lecture type
+    if (lecture.lectureType === 'text') return false;
+    if (lecture.lectureType === 'video') return true;
+    // Fallback: check file extension (guards against stale/missing type data)
+    const ext = lecture.filePath?.toLowerCase() ?? '';
+    return !ext.endsWith('.html') && !ext.endsWith('.htm');
   };
+
 
   // Loading state
   if (isLoading) {
     return (
       <div className="flex h-screen items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
-          <svg className="animate-spin h-8 w-8 text-primary" fill="none" viewBox="0 0 24 24" aria-hidden="true">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-          </svg>
+          <Loader2 className="h-8 w-8 text-primary animate-spin" />
           <p className="text-sm text-muted-foreground">Loading course...</p>
         </div>
       </div>
@@ -277,16 +279,14 @@ export function PlayerView({ courseId, initialLectureId, onBack }: PlayerViewPro
   if (error || !course) {
     return (
       <div className="flex h-screen items-center justify-center bg-background">
-        <div className="text-center space-y-4">
-          <svg className="w-12 h-12 text-destructive mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
+        <div className="text-center space-y-4 animate-fade-in">
+          <AlertCircle className="w-12 h-12 text-destructive mx-auto" />
           <div>
             <p className="text-lg font-medium text-foreground">Failed to Load Course</p>
             <p className="text-sm text-muted-foreground mt-1">{error}</p>
           </div>
           {onBack && (
-            <Button onClick={onBack} variant="outline">
+            <Button onClick={onBack} variant="outline" className="border-border/50">
               Go Back
             </Button>
           )}
@@ -299,16 +299,14 @@ export function PlayerView({ courseId, initialLectureId, onBack }: PlayerViewPro
   if (!currentLecture) {
     return (
       <div className="flex h-screen items-center justify-center bg-background">
-        <div className="text-center space-y-4">
-          <svg className="w-12 h-12 text-muted-foreground mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-          </svg>
+        <div className="text-center space-y-4 animate-fade-in">
+          <FileText className="w-12 h-12 text-muted-foreground mx-auto" />
           <div>
             <p className="text-lg font-medium text-foreground">No Lectures Available</p>
             <p className="text-sm text-muted-foreground mt-1">This course doesn't have any lectures yet.</p>
           </div>
           {onBack && (
-            <Button onClick={onBack} variant="outline">
+            <Button onClick={onBack} variant="outline" className="border-border/50">
               Go Back
             </Button>
           )}
@@ -320,22 +318,20 @@ export function PlayerView({ courseId, initialLectureId, onBack }: PlayerViewPro
   return (
     <div className="flex h-screen bg-background">
       {/* Main Player Area */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col min-w-0">
         {/* Top Bar */}
-        <div className="flex items-center justify-between px-6 py-3 border-b border-border bg-card">
+        <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/50 bg-card/80 backdrop-blur-xl">
           {/* Back Button */}
           {onBack && (
-            <Button variant="ghost" size="sm" onClick={onBack}>
-              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-              </svg>
-              Back to Course
+            <Button variant="ghost" size="sm" onClick={onBack} className="gap-2 text-muted-foreground hover:text-foreground">
+              <ArrowLeft className="w-4 h-4" />
+              Back
             </Button>
           )}
 
           {/* Course Title */}
           <div className="flex-1 px-4 text-center">
-            <h1 className="text-lg font-semibold text-foreground line-clamp-1">
+            <h1 className="text-sm font-semibold text-foreground line-clamp-1">
               {course.title}
             </h1>
           </div>
@@ -345,20 +341,17 @@ export function PlayerView({ courseId, initialLectureId, onBack }: PlayerViewPro
             variant="ghost"
             size="sm"
             onClick={() => setShowSidebar(!showSidebar)}
+            className="gap-2 text-muted-foreground hover:text-foreground"
           >
             {showSidebar ? (
               <>
-                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
-                </svg>
-                Hide Sidebar
+                <PanelRightClose className="w-4 h-4" />
+                <span className="hidden sm:inline">Hide</span>
               </>
             ) : (
               <>
-                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
-                </svg>
-                Show Sidebar
+                <PanelRightOpen className="w-4 h-4" />
+                <span className="hidden sm:inline">Content</span>
               </>
             )}
           </Button>
@@ -378,11 +371,10 @@ export function PlayerView({ courseId, initialLectureId, onBack }: PlayerViewPro
             <HtmlLectureViewer
               lectureId={currentLecture.id}
               title={currentLecture.title}
-              htmlFilePath={`${coursesDir}/${currentLecture.filePath}`}
-              onNavigateNext={handleNavigateNext}
-              onNavigatePrevious={handleNavigatePrevious}
               hasNext={hasNextLecture()}
               hasPrevious={hasPreviousLecture()}
+              onNavigateNext={handleNavigateNext}
+              onNavigatePrevious={handleNavigatePrevious}
             />
           )}
         </div>
@@ -390,7 +382,7 @@ export function PlayerView({ courseId, initialLectureId, onBack }: PlayerViewPro
 
       {/* Sidebar */}
       {showSidebar && course.sections && (
-        <div className="w-96 flex-shrink-0">
+        <div className="w-96 flex-shrink-0 border-l border-border/50">
           <LectureList
             sections={course.sections}
             currentLectureId={currentLecture.id}

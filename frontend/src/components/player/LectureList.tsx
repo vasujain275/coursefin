@@ -1,15 +1,24 @@
 // ============================================================================
 // LectureList - CourseFin
 // ============================================================================
-// Purpose: Sidebar showing all sections and lectures for navigation
-// Architecture: Expandable sections with lecture progress indicators
+// Purpose: Sidebar showing all course sections and lecture items
+// Architecture: shadcn Accordion customized to remove underline on hover.
+//   The built-in AccordionTrigger applies `hover:underline` to its inner span.
+//   We override it with `[&>span:last-child]:no-underline` and add our own
+//   custom trigger content so we get full design control.
 // ============================================================================
 
-import { useState } from 'react';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion';
 import { Button } from '@/components/ui/button';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import type { Section, Lecture } from '@/types';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { cn } from '@/lib/utils';
+import type { Lecture, Section } from '@/types';
+import { Check, File, FileText, PlayCircle, X } from 'lucide-react';
 
 interface LectureListProps {
   sections: Section[];
@@ -29,183 +38,168 @@ export function LectureList({
     section.lectures.some(lecture => lecture.id === currentLectureId)
   );
 
-  // Default to opening the current section
-  const [openSections, setOpenSections] = useState<string[]>(
-    currentSectionIndex >= 0 ? [`section-${currentSectionIndex}`] : ['section-0']
-  );
+  const defaultOpen = currentSectionIndex >= 0
+    ? [`section-${currentSectionIndex}`]
+    : ['section-0'];
 
-  const getLectureIcon = (lecture: Lecture) => {
-    // Determine icon based on file type
-    const isVideo = lecture.filePath.toLowerCase().endsWith('.mp4');
-    const isHtml = lecture.filePath.toLowerCase().endsWith('.html');
+  const getLectureIcon = (lecture: Lecture, isActive: boolean) => {
+    const ext = lecture.filePath?.toLowerCase() ?? '';
+    const cls = cn('w-3.5 h-3.5 flex-shrink-0', isActive ? 'text-primary' : 'text-muted-foreground');
 
-    if (isVideo) {
-      return (
-        <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"
-          />
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-      );
+    if (lecture.lectureType === 'text' || ext.endsWith('.html')) {
+      return <FileText className={cls} />;
     }
-
-    if (isHtml) {
-      return (
-        <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-          />
-        </svg>
-      );
+    if (ext.endsWith('.mp4') || ext.endsWith('.mkv') || ext.endsWith('.webm')) {
+      return <PlayCircle className={cls} />;
     }
-
-    return (
-      <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth={2}
-          d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
-        />
-      </svg>
-    );
+    return <File className={cls} />;
   };
 
-  const formatDuration = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${String(secs).padStart(2, '0')}`;
+  const formatDuration = (seconds: number): string => {
+    if (!seconds || seconds <= 0) return '';
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = Math.floor(seconds % 60);
+    if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    return `${m}:${String(s).padStart(2, '0')}`;
   };
+
+  const totalLectures = sections.reduce((acc, s) => acc + s.lectures.length, 0);
 
   return (
-    <div className="flex flex-col h-full bg-card border-l border-border">
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-        <h3 className="font-semibold text-foreground">Course Content</h3>
+    <div className="flex flex-col h-full bg-card/50">
+      {/* ── Sidebar Header ── */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border/40 bg-card/80 backdrop-blur-sm flex-shrink-0">
+        <div>
+          <h3 className="text-sm font-semibold text-foreground">Course Content</h3>
+          <p className="text-[10px] text-muted-foreground mt-0.5">
+            {sections.length} sections · {totalLectures} lectures
+          </p>
+        </div>
         {onClose && (
           <Button
             variant="ghost"
             size="icon"
             onClick={onClose}
-            className="h-8 w-8"
+            className="h-7 w-7 text-muted-foreground hover:text-foreground"
             aria-label="Close sidebar"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
+            <X className="w-3.5 h-3.5" />
           </Button>
         )}
       </div>
 
-      {/* Sections List */}
-      <ScrollArea className="flex-1">
+      {/* ── Sections ── */}
+      <ScrollArea className="flex-1 scrollbar-thin">
         <Accordion
           type="multiple"
-          value={openSections}
-          onValueChange={setOpenSections}
+          defaultValue={defaultOpen}
           className="w-full"
         >
           {sections.map((section, sectionIndex) => {
             const completedCount = section.lectures.filter(l => l.isCompleted).length;
             const totalCount = section.lectures.length;
-            const progressPercent = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
+            const progressPct = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
 
             return (
               <AccordionItem
                 key={section.id}
                 value={`section-${sectionIndex}`}
-                className="border-b border-border"
+                className="border-b border-border/20 last:border-b-0"
               >
-                <AccordionTrigger className="px-4 py-3 hover:bg-accent/50 text-left">
-                  <div className="flex-1 space-y-2">
+                {/*
+                  Override the built-in hover:underline that shadcn adds to AccordionTrigger.
+                  `[&>span:last-child]:no-underline` targets the chevron wrapper span.
+                  `[&>div]:hover:no-underline` targets our custom content div.
+                  The `no-underline` class + `hover:no-underline` at root level handles everything.
+                  We also use `hover:no-underline` on the trigger itself.
+                */}
+                <AccordionTrigger
+                  className={cn(
+                    'px-4 py-3 hover:bg-muted/20 hover:no-underline transition-colors',
+                    // Remove underline from ALL child elements including the inner span
+                    '[&>*]:no-underline [&>*]:hover:no-underline',
+                    '[&>span]:no-underline [&>span]:decoration-0',
+                    'text-left'
+                  )}
+                >
+                  {/* Custom section header content */}
+                  <div className="flex-1 min-w-0 space-y-1.5 mr-2">
                     <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-foreground line-clamp-2">
-                          {section.orderIndex}. {section.title}
-                        </p>
-                      </div>
-                      <span className="text-xs text-muted-foreground whitespace-nowrap">
+                      <p className="text-xs font-semibold text-foreground leading-snug line-clamp-2 no-underline">
+                        {section.title}
+                      </p>
+                      <span className="text-[10px] text-muted-foreground whitespace-nowrap font-mono flex-shrink-0">
                         {completedCount}/{totalCount}
                       </span>
                     </div>
-                    {/* Progress Bar */}
-                    <div className="w-full h-1 bg-muted rounded-full overflow-hidden">
+                    {/* Thin progress bar */}
+                    <div className="w-full h-0.5 bg-border/40 rounded-full overflow-hidden">
                       <div
-                        className="h-full bg-primary transition-all duration-300"
-                        style={{ width: `${progressPercent}%` }}
+                        className="h-full bg-primary/60 rounded-full transition-all duration-700 ease-out"
+                        style={{ width: `${progressPct}%` }}
                       />
                     </div>
                   </div>
                 </AccordionTrigger>
 
-                <AccordionContent className="px-0 py-0">
-                  <div className="space-y-0.5 py-1">
-                    {section.lectures.map((lecture) => {
-                      const isActive = lecture.id === currentLectureId;
+                <AccordionContent className="px-0 py-0 pb-1">
+                  {section.lectures.map((lecture) => {
+                    const isActive = lecture.id === currentLectureId;
 
-                      return (
-                        <button
-                          key={lecture.id}
-                          onClick={() => onLectureSelect(lecture)}
-                          className={`
-                            w-full flex items-start gap-3 px-4 py-3 text-left transition-colors
-                            hover:bg-accent/50
-                            ${isActive ? 'bg-primary/10 border-l-2 border-primary' : ''}
-                          `}
-                        >
-                          {/* Icon */}
-                          <div className={`mt-0.5 ${isActive ? 'text-primary' : 'text-muted-foreground'}`}>
-                            {getLectureIcon(lecture)}
-                          </div>
+                    return (
+                      <button
+                        key={lecture.id}
+                        onClick={() => onLectureSelect(lecture)}
+                        className={cn(
+                          'w-full flex items-start gap-2.5 px-4 py-2.5 text-left transition-all duration-150',
+                          'border-l-2',
+                          isActive
+                            ? 'bg-primary/8 border-l-primary'
+                            : 'border-l-transparent hover:bg-muted/15 hover:border-l-border/60'
+                        )}
+                      >
+                        {/* Icon */}
+                        <div className="mt-0.5">{getLectureIcon(lecture, isActive)}</div>
 
-                          {/* Content */}
-                          <div className="flex-1 min-w-0 space-y-1">
-                            <p className={`text-sm line-clamp-2 ${isActive ? 'font-medium text-primary' : 'text-foreground'}`}>
-                              {lecture.orderIndex}. {lecture.title}
-                            </p>
-                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                              {lecture.duration > 0 && (
-                                <span className="font-mono">{formatDuration(lecture.duration)}</span>
-                              )}
-                              {lecture.isCompleted && (
-                                <span className="flex items-center gap-1 text-green-600 dark:text-green-500">
-                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                  </svg>
-                                  Completed
-                                </span>
-                              )}
-                            </div>
+                        {/* Text */}
+                        <div className="flex-1 min-w-0 space-y-0.5">
+                          <p className={cn(
+                            'text-xs leading-relaxed line-clamp-2',
+                            isActive
+                              ? 'text-primary font-medium'
+                              : 'text-foreground/80'
+                          )}>
+                            {lecture.title}
+                          </p>
+
+                          {/* Meta */}
+                          <div className="flex items-center gap-2">
+                            {lecture.lectureType === 'text' && (
+                              <span className="text-[10px] text-muted-foreground">Article</span>
+                            )}
+                            {lecture.duration > 0 && (
+                              <span className="text-[10px] text-muted-foreground font-mono">
+                                {formatDuration(lecture.duration)}
+                              </span>
+                            )}
+                            {lecture.isCompleted && (
+                              <span className="flex items-center gap-0.5 text-[10px] text-success">
+                                <Check className="w-3 h-3" />
+                                Done
+                              </span>
+                            )}
                           </div>
-                        </button>
-                      );
-                    })}
-                  </div>
+                        </div>
+                      </button>
+                    );
+                  })}
                 </AccordionContent>
               </AccordionItem>
             );
           })}
         </Accordion>
       </ScrollArea>
-
-      {/* Footer Stats */}
-      <div className="border-t border-border px-4 py-3 bg-muted/30">
-        <div className="flex items-center justify-between text-xs text-muted-foreground">
-          <span>
-            {sections.length} section{sections.length !== 1 ? 's' : ''}
-          </span>
-          <span>
-            {sections.reduce((acc, s) => acc + s.lectures.length, 0)} lectures
-          </span>
-        </div>
-      </div>
     </div>
   );
 }
