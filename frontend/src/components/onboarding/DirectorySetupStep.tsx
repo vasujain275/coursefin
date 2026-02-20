@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SelectFolderDialog } from '@/wailsjs/go/main/App';
+import { AlertCircle, FolderOpen, Info, Loader2 } from 'lucide-react';
 import { useState } from 'react';
 
 interface DirectorySetupStepProps {
@@ -62,7 +63,7 @@ export function DirectorySetupStep({
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-8 bg-background">
-      <div className="w-full max-w-2xl space-y-8">
+      <div className="w-full max-w-2xl space-y-8 animate-fade-in-up">
         {/* Header */}
         <div className="text-center space-y-2">
           <h1 className="text-4xl font-bold tracking-tight text-foreground">
@@ -74,7 +75,7 @@ export function DirectorySetupStep({
         </div>
 
         {/* Main Card */}
-        <Card className="border-border shadow-lg">
+        <Card className="border-border/50 shadow-xl shadow-primary/5">
           <CardHeader>
             <CardTitle className="text-2xl">Courses Directory</CardTitle>
             <CardDescription>
@@ -95,28 +96,23 @@ export function DirectorySetupStep({
                   value={directory}
                   readOnly
                   placeholder="No folder selected..."
-                  className="flex-1 h-11 text-base font-mono text-sm bg-muted"
+                  className="flex-1 h-11 text-sm mono bg-muted/30 border-border/50"
                 />
 
                 <Button
                   onClick={handleSelectFolder}
                   disabled={isSelecting}
                   variant="outline"
-                  className="h-11 px-6"
+                  className="h-11 px-6 border-border/50 hover:border-primary/30"
                 >
                   {isSelecting ? (
                     <>
-                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" aria-hidden="true">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                      </svg>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Selecting...
                     </>
                   ) : (
                     <>
-                      <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 19a2 2 0 01-2-2V7a2 2 0 012-2h4l2 2h4a2 2 0 012 2v1M5 19h14a2 2 0 002-2v-5a2 2 0 00-2-2H9a2 2 0 00-2 2v5a2 2 0 01-2 2z" />
-                      </svg>
+                      <FolderOpen className="mr-2 h-4 w-4" />
                       Browse
                     </>
                   )}
@@ -126,26 +122,22 @@ export function DirectorySetupStep({
               {/* Error Message */}
               {error && (
                 <div className="flex items-center gap-2 text-sm text-destructive">
-                  <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
                   {error}
                 </div>
               )}
             </div>
 
             {/* Info Box */}
-            <div className="p-4 bg-muted/50 rounded-lg border border-border space-y-2">
+            <div className="p-4 bg-muted/30 rounded-xl border border-border/50 space-y-2">
               <div className="flex items-start gap-2">
-                <svg className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
+                <Info className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
                 <div className="space-y-1">
                   <p className="text-sm font-medium text-foreground">Expected folder structure</p>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-sm text-muted-foreground leading-relaxed">
                     Select the parent folder that contains multiple course folders. Each course folder should have sections with lecture files inside.
                   </p>
-                  <div className="mt-2 font-mono text-xs text-muted-foreground space-y-0.5">
+                  <div className="mt-2 mono text-xs text-muted-foreground space-y-0.5 bg-background/50 rounded-lg p-3 border border-border/30">
                     <div>📁 courses/ <span className="text-primary">← Select this parent folder</span></div>
                     <div className="pl-4">📁 Course 1/</div>
                     <div className="pl-8">📁 1 - Section Name/</div>
@@ -163,7 +155,7 @@ export function DirectorySetupStep({
             <Button
               onClick={onBack}
               variant="outline"
-              className="h-11 px-6"
+              className="h-11 px-6 border-border/50"
             >
               Back
             </Button>
@@ -171,17 +163,20 @@ export function DirectorySetupStep({
             <Button
               onClick={handleContinue}
               disabled={!canContinue}
-              className="flex-1 h-11 text-base"
+              className="flex-1 h-11 text-base shadow-lg shadow-primary/20"
             >
               Continue
             </Button>
           </CardFooter>
         </Card>
 
-        {/* Footer */}
-        <p className="text-center text-sm text-muted-foreground">
-          Step 2 of 3
-        </p>
+        {/* Step Indicator */}
+        <div className="flex items-center justify-center gap-2">
+          <div className="w-2 h-2 rounded-full bg-primary/40" />
+          <div className="w-2 h-2 rounded-full bg-primary" />
+          <div className="w-2 h-2 rounded-full bg-border" />
+          <span className="text-xs text-muted-foreground ml-2">Step 2 of 3</span>
+        </div>
       </div>
     </div>
   );

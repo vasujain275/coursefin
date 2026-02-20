@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import type { ScanLibraryResult } from '@/types';
 import { ScanLibrary } from '@/wailsjs/go/main/App';
+import { AlertTriangle, ArrowRight, CheckCircle2, XCircle } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 type ScanState = 'scanning' | 'success' | 'error';
@@ -45,7 +46,7 @@ export function LibraryScanStep({ onComplete, onBack }: LibraryScanStepProps) {
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-8 bg-background">
-      <div className="w-full max-w-2xl space-y-8">
+      <div className="w-full max-w-2xl space-y-8 animate-fade-in-up">
         {/* Header */}
         <div className="text-center space-y-2">
           <h1 className="text-4xl font-bold tracking-tight text-foreground">
@@ -60,7 +61,7 @@ export function LibraryScanStep({ onComplete, onBack }: LibraryScanStepProps) {
           </p>
         </div>
 
-        <Card className="border-border shadow-lg">
+        <Card className="border-border/50 shadow-xl shadow-primary/5">
           <CardHeader>
             <CardTitle className="text-2xl">
               {scanState === 'scanning' && 'Importing Courses'}
@@ -79,7 +80,7 @@ export function LibraryScanStep({ onComplete, onBack }: LibraryScanStepProps) {
             {scanState === 'scanning' && (
               <div className="flex flex-col items-center py-10 gap-5">
                 <div className="relative">
-                  <div className="w-16 h-16 rounded-full border-4 border-border" />
+                  <div className="w-16 h-16 rounded-full border-4 border-border/50" />
                   <div className="absolute inset-0 w-16 h-16 rounded-full border-4 border-primary border-t-transparent animate-spin" />
                 </div>
                 <p className="text-sm text-muted-foreground">
@@ -93,37 +94,33 @@ export function LibraryScanStep({ onComplete, onBack }: LibraryScanStepProps) {
               <div className="space-y-5">
                 {/* Big checkmark */}
                 <div className="flex justify-center py-4">
-                  <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-primary/10">
-                    <svg className="w-10 h-10 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
+                  <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-br from-primary/15 to-primary/5">
+                    <CheckCircle2 className="w-10 h-10 text-primary" />
                   </div>
                 </div>
 
                 {/* Stats row */}
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="flex flex-col items-center p-4 bg-muted/50 rounded-lg border border-border">
+                  <div className="flex flex-col items-center p-4 bg-primary/5 rounded-xl border border-primary/20">
                     <span className="text-3xl font-bold text-primary">{result.coursesAdded}</span>
                     <span className="text-sm text-muted-foreground mt-1">
                       {result.coursesAdded === 1 ? 'Course Added' : 'Courses Added'}
                     </span>
                   </div>
-                  <div className="flex flex-col items-center p-4 bg-muted/50 rounded-lg border border-border">
+                  <div className="flex flex-col items-center p-4 bg-muted/30 rounded-xl border border-border/50">
                     <span className="text-3xl font-bold text-muted-foreground">{result.coursesSkipped}</span>
                     <span className="text-sm text-muted-foreground mt-1">
-                      {result.coursesSkipped === 1 ? 'Already Imported' : 'Already Imported'}
+                      Already Imported
                     </span>
                   </div>
                 </div>
 
                 {/* Non-fatal errors list */}
                 {result.errors.length > 0 && (
-                  <div className="p-4 bg-warning/10 rounded-lg border border-warning/30 space-y-2">
+                  <div className="p-4 bg-warning/10 rounded-xl border border-warning/20 space-y-2">
                     <div className="flex items-center gap-2">
-                      <svg className="w-4 h-4 text-warning flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
-                      </svg>
-                      <p className="text-sm font-medium text-warning-foreground">
+                      <AlertTriangle className="w-4 h-4 text-warning flex-shrink-0" />
+                      <p className="text-sm font-medium text-foreground">
                         {result.errors.length} folder{result.errors.length !== 1 ? 's' : ''} skipped
                       </p>
                     </div>
@@ -137,7 +134,7 @@ export function LibraryScanStep({ onComplete, onBack }: LibraryScanStepProps) {
 
                 {/* Zero courses notice */}
                 {result.coursesAdded === 0 && result.coursesSkipped === 0 && (
-                  <div className="p-4 bg-muted/50 rounded-lg border border-border text-center">
+                  <div className="p-4 bg-muted/30 rounded-xl border border-border/50 text-center">
                     <p className="text-sm text-muted-foreground">
                       No course folders were found in the selected directory. You can add courses later using the <strong>Refresh Library</strong> button.
                     </p>
@@ -151,14 +148,12 @@ export function LibraryScanStep({ onComplete, onBack }: LibraryScanStepProps) {
               <div className="space-y-5">
                 <div className="flex justify-center py-4">
                   <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-destructive/10">
-                    <svg className="w-10 h-10 text-destructive" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
+                    <XCircle className="w-10 h-10 text-destructive" />
                   </div>
                 </div>
                 {errorMessage && (
-                  <div className="p-4 bg-destructive/10 rounded-lg border border-destructive/30">
-                    <p className="text-sm text-destructive-foreground font-mono">{errorMessage}</p>
+                  <div className="p-4 bg-destructive/5 rounded-xl border border-destructive/20">
+                    <p className="text-sm text-destructive mono">{errorMessage}</p>
                   </div>
                 )}
                 <p className="text-sm text-muted-foreground text-center">
@@ -171,30 +166,33 @@ export function LibraryScanStep({ onComplete, onBack }: LibraryScanStepProps) {
           <CardFooter className="flex gap-3">
             {/* Back only available when not actively scanning */}
             {scanState !== 'scanning' && (
-              <Button onClick={onBack} variant="outline" className="h-11 px-6">
+              <Button onClick={onBack} variant="outline" className="h-11 px-6 border-border/50">
                 Back
               </Button>
             )}
 
             {scanState === 'error' && (
-              <Button onClick={() => void runScan()} className="flex-1 h-11 text-base">
+              <Button onClick={() => void runScan()} className="flex-1 h-11 text-base shadow-lg shadow-primary/20">
                 Retry Scan
               </Button>
             )}
 
             {scanState === 'success' && (
-              <Button onClick={onComplete} className="flex-1 h-11 text-base">
+              <Button onClick={onComplete} className="flex-1 h-11 text-base shadow-lg shadow-primary/20 gap-2">
                 Open Library
-                <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                </svg>
+                <ArrowRight className="w-4 h-4" />
               </Button>
             )}
           </CardFooter>
         </Card>
 
         {/* Step indicator */}
-        <p className="text-center text-sm text-muted-foreground">Step 3 of 3</p>
+        <div className="flex items-center justify-center gap-2">
+          <div className="w-2 h-2 rounded-full bg-primary/40" />
+          <div className="w-2 h-2 rounded-full bg-primary/40" />
+          <div className="w-2 h-2 rounded-full bg-primary" />
+          <span className="text-xs text-muted-foreground ml-2">Step 3 of 3</span>
+        </div>
       </div>
     </div>
   );

@@ -1,8 +1,8 @@
 // ============================================================================
 // AppLayout - CourseFin
 // ============================================================================
-// Purpose: Main application layout wrapper
-// Architecture: Header + Content area with proper spacing
+// Purpose: Main application layout wrapper (full-width, desktop-optimized)
+// Architecture: Header + Content area with smooth transitions
 // ============================================================================
 
 import { Header } from './Header';
@@ -20,7 +20,7 @@ export function AppLayout({ children, onSettings, onSearch }: AppLayoutProps) {
         onSettings={onSettings}
         onSearch={onSearch}
       />
-      <main className="container px-6 py-8">
+      <main className="w-full px-6 lg:px-10 xl:px-16 py-6 lg:py-8 animate-fade-in">
         {children}
       </main>
     </div>

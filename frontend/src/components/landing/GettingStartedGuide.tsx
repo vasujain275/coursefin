@@ -2,11 +2,12 @@
 // GettingStartedGuide - CourseFin
 // ============================================================================
 // Purpose: Impressive welcome guide with tutorial cards
-// Architecture: Hero section + action cards with beautiful design
+// Architecture: Hero section + action cards with modern design
 // ============================================================================
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { BarChart3, BookOpen, Check, CloudUpload, PlayCircle, RefreshCw } from 'lucide-react';
 
 interface GettingStartedGuideProps {
   onImportCourse?: () => void;
@@ -18,24 +19,11 @@ export function GettingStartedGuide({
   onSettings
 }: GettingStartedGuideProps) {
   return (
-    <div className="max-w-6xl mx-auto space-y-12">
+    <div className="max-w-6xl mx-auto space-y-12 animate-fade-in">
       {/* Hero Section */}
       <div className="text-center space-y-6 pt-8">
-        <div className="inline-flex items-center justify-center w-24 h-24 rounded-3xl bg-gradient-to-br from-primary/20 to-primary/5 mb-4">
-          <svg
-            className="w-12 h-12 text-primary"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-            aria-hidden="true"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
-            />
-          </svg>
+        <div className="inline-flex items-center justify-center w-24 h-24 rounded-3xl bg-gradient-to-br from-primary/20 to-accent/10 mb-4 animate-glow-pulse">
+          <BookOpen className="w-12 h-12 text-primary" strokeWidth={1.5} />
         </div>
 
         <div className="space-y-4">
@@ -53,18 +41,16 @@ export function GettingStartedGuide({
           <Button
             onClick={onImportCourse}
             size="lg"
-            className="h-12 px-8 text-base gap-2"
+            className="h-12 px-8 text-base gap-2 shadow-lg shadow-primary/20 transition-all hover:shadow-xl hover:shadow-primary/30"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
+            <RefreshCw className="w-5 h-5" />
             Scan Library
           </Button>
           <Button
             onClick={onSettings}
             variant="outline"
             size="lg"
-            className="h-12 px-8 text-base"
+            className="h-12 px-8 text-base border-border/50 hover:border-primary/30 transition-colors"
           >
             Settings
           </Button>
@@ -74,12 +60,10 @@ export function GettingStartedGuide({
       {/* Feature Cards Grid */}
       <div className="grid md:grid-cols-3 gap-6">
         {/* Card 1: Import & Organize */}
-        <Card className="border-border hover:border-primary/50 transition-colors group">
+        <Card className="border-border/50 hover:border-primary/30 transition-all duration-300 group hover:shadow-lg hover:shadow-primary/5">
           <CardHeader>
-            <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors">
-              <svg className="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-              </svg>
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary/15 to-primary/5 flex items-center justify-center mb-4 group-hover:from-primary/25 group-hover:to-primary/10 transition-colors duration-300">
+              <CloudUpload className="w-6 h-6 text-primary" />
             </div>
             <CardTitle className="text-xl">Import & Organize</CardTitle>
             <CardDescription className="leading-relaxed">
@@ -89,21 +73,15 @@ export function GettingStartedGuide({
           <CardContent>
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li className="flex items-center gap-2">
-                <svg className="w-4 h-4 text-primary flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
+                <Check className="w-4 h-4 text-primary flex-shrink-0" />
                 Auto-detect course structure
               </li>
               <li className="flex items-center gap-2">
-                <svg className="w-4 h-4 text-primary flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
+                <Check className="w-4 h-4 text-primary flex-shrink-0" />
                 Organize sections & lectures
               </li>
               <li className="flex items-center gap-2">
-                <svg className="w-4 h-4 text-primary flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
+                <Check className="w-4 h-4 text-primary flex-shrink-0" />
                 Import multiple courses at once
               </li>
             </ul>
@@ -111,13 +89,10 @@ export function GettingStartedGuide({
         </Card>
 
         {/* Card 2: Watch & Learn */}
-        <Card className="border-border hover:border-primary/50 transition-colors group">
+        <Card className="border-border/50 hover:border-primary/30 transition-all duration-300 group hover:shadow-lg hover:shadow-primary/5">
           <CardHeader>
-            <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors">
-              <svg className="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary/15 to-primary/5 flex items-center justify-center mb-4 group-hover:from-primary/25 group-hover:to-primary/10 transition-colors duration-300">
+              <PlayCircle className="w-6 h-6 text-primary" />
             </div>
             <CardTitle className="text-xl">Watch & Learn</CardTitle>
             <CardDescription className="leading-relaxed">
@@ -127,21 +102,15 @@ export function GettingStartedGuide({
           <CardContent>
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li className="flex items-center gap-2">
-                <svg className="w-4 h-4 text-primary flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
+                <Check className="w-4 h-4 text-primary flex-shrink-0" />
                 HD video playback
               </li>
               <li className="flex items-center gap-2">
-                <svg className="w-4 h-4 text-primary flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
+                <Check className="w-4 h-4 text-primary flex-shrink-0" />
                 Subtitles & captions support
               </li>
               <li className="flex items-center gap-2">
-                <svg className="w-4 h-4 text-primary flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
+                <Check className="w-4 h-4 text-primary flex-shrink-0" />
                 Variable playback speed
               </li>
             </ul>
@@ -149,12 +118,10 @@ export function GettingStartedGuide({
         </Card>
 
         {/* Card 3: Track Progress */}
-        <Card className="border-border hover:border-primary/50 transition-colors group">
+        <Card className="border-border/50 hover:border-primary/30 transition-all duration-300 group hover:shadow-lg hover:shadow-primary/5">
           <CardHeader>
-            <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors">
-              <svg className="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-              </svg>
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary/15 to-primary/5 flex items-center justify-center mb-4 group-hover:from-primary/25 group-hover:to-primary/10 transition-colors duration-300">
+              <BarChart3 className="w-6 h-6 text-primary" />
             </div>
             <CardTitle className="text-xl">Track Progress</CardTitle>
             <CardDescription className="leading-relaxed">
@@ -164,21 +131,15 @@ export function GettingStartedGuide({
           <CardContent>
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li className="flex items-center gap-2">
-                <svg className="w-4 h-4 text-primary flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
+                <Check className="w-4 h-4 text-primary flex-shrink-0" />
                 Resume where you left off
               </li>
               <li className="flex items-center gap-2">
-                <svg className="w-4 h-4 text-primary flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
+                <Check className="w-4 h-4 text-primary flex-shrink-0" />
                 View completion percentage
               </li>
               <li className="flex items-center gap-2">
-                <svg className="w-4 h-4 text-primary flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
+                <Check className="w-4 h-4 text-primary flex-shrink-0" />
                 Mark lectures as complete
               </li>
             </ul>
@@ -196,7 +157,7 @@ export function GettingStartedGuide({
           {/* Step 1 */}
           <div className="relative">
             <div className="flex flex-col items-center text-center space-y-4">
-              <div className="w-16 h-16 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center text-2xl font-bold">
+              <div className="w-16 h-16 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center text-2xl font-bold shadow-lg shadow-primary/20">
                 1
               </div>
               <h3 className="text-lg font-semibold text-foreground">
@@ -207,13 +168,13 @@ export function GettingStartedGuide({
               </p>
             </div>
             {/* Connector Line */}
-            <div className="hidden md:block absolute top-8 left-[60%] w-[80%] h-0.5 bg-border" aria-hidden="true" />
+            <div className="hidden md:block absolute top-8 left-[60%] w-[80%] h-px bg-gradient-to-r from-border to-transparent" aria-hidden="true" />
           </div>
 
           {/* Step 2 */}
           <div className="relative">
             <div className="flex flex-col items-center text-center space-y-4">
-              <div className="w-16 h-16 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center text-2xl font-bold">
+              <div className="w-16 h-16 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center text-2xl font-bold shadow-lg shadow-primary/20">
                 2
               </div>
               <h3 className="text-lg font-semibold text-foreground">
@@ -224,13 +185,13 @@ export function GettingStartedGuide({
               </p>
             </div>
             {/* Connector Line */}
-            <div className="hidden md:block absolute top-8 left-[60%] w-[80%] h-0.5 bg-border" aria-hidden="true" />
+            <div className="hidden md:block absolute top-8 left-[60%] w-[80%] h-px bg-gradient-to-r from-border to-transparent" aria-hidden="true" />
           </div>
 
           {/* Step 3 */}
           <div className="relative">
             <div className="flex flex-col items-center text-center space-y-4">
-              <div className="w-16 h-16 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center text-2xl font-bold">
+              <div className="w-16 h-16 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center text-2xl font-bold shadow-lg shadow-primary/20">
                 3
               </div>
               <h3 className="text-lg font-semibold text-foreground">
@@ -246,18 +207,16 @@ export function GettingStartedGuide({
 
       {/* Bottom CTA */}
       <div className="text-center py-8">
-        <div className="inline-flex flex-col items-center gap-4 p-8 rounded-2xl bg-gradient-to-br from-primary/5 to-primary/10 border border-primary/20">
+        <div className="inline-flex flex-col items-center gap-4 p-8 rounded-2xl bg-gradient-to-br from-primary/5 to-accent/5 border border-primary/20 backdrop-blur-sm">
           <p className="text-lg font-medium text-foreground">
             Ready to start your learning journey?
           </p>
           <Button
             onClick={onImportCourse}
             size="lg"
-            className="h-12 px-8 text-base gap-2"
+            className="h-12 px-8 text-base gap-2 shadow-lg shadow-primary/20"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
+            <RefreshCw className="w-5 h-5" />
             Scan Library
           </Button>
         </div>
