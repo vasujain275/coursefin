@@ -21,11 +21,11 @@ import (
 
 // Service handles course business logic
 type Service struct {
-	queries *sqlc.Queries
+	queries sqlc.Querier
 }
 
 // NewService creates a new course service
-func NewService(queries *sqlc.Queries) *Service {
+func NewService(queries sqlc.Querier) *Service {
 	return &Service{
 		queries: queries,
 	}
@@ -103,28 +103,40 @@ func (s *Service) ScanLibrary(ctx context.Context, coursesDir string) (*ScanLibr
 	return result, nil
 }
 
-// ImportCourse scans and imports a course from a folder path
+// ImportCourse scans and imports a course from a folder path.
+// If the course already exists, it performs a SMART SYNC:
+//   - Re-scans the filesystem for any new/missing lectures
+//   - Inserts missing sections and lectures without touching existing ones
+//   - Preserves all existing progress data
+//
 // coursePath: absolute path to course folder
 // coursesDir: absolute path to courses library root directory (used for scanning)
 func (s *Service) ImportCourse(ctx context.Context, coursePath string, coursesDir string) (*ImportCourseResult, error) {
-	// Check if course already exists (using absolute path)
-	existingCourse, err := s.queries.GetCourseByPath(ctx, coursePath)
-	if err == nil && existingCourse != nil {
-		// Course already imported
-		return &ImportCourseResult{
-			CourseID:      existingCourse.ID,
-			Title:         existingCourse.Title,
-			AlreadyExists: true,
-		}, nil
-	}
-
-	// Scan course folder for metadata
+	// Scan course folder for metadata (always do this, even for existing courses)
 	metadata, err := ScanCourseFolder(coursePath, coursesDir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to scan course folder: %w", err)
 	}
 
-	// Calculate total duration and lecture count
+	// Helper functions
+	strPtr := func(s string) *string {
+		if s == "" {
+			return nil
+		}
+		return &s
+	}
+	int64Ptr := func(i int64) *int64 { return &i }
+
+	// Check if course already exists (using absolute path)
+	existingCourse, err := s.queries.GetCourseByPath(ctx, coursePath)
+	if err == nil && existingCourse != nil {
+		// ── Smart Sync: course exists, add missing sections/lectures ──
+		return s.syncExistingCourse(ctx, existingCourse, metadata, int64Ptr)
+	}
+
+	// ── Fresh Import: course doesn't exist yet ──
+
+	// Calculate totals
 	var totalDuration int64
 	var totalLectures int
 	for _, section := range metadata.Sections {
@@ -134,21 +146,8 @@ func (s *Service) ImportCourse(ctx context.Context, coursePath string, coursesDi
 		}
 	}
 
-	// Generate slug from title
 	slug := generateSlug(metadata.Title)
 
-	// Helper function to create string pointer
-	strPtr := func(s string) *string {
-		if s == "" {
-			return nil
-		}
-		return &s
-	}
-
-	// Helper for int64 pointer
-	int64Ptr := func(i int64) *int64 { return &i }
-
-	// Create course record
 	course, err := s.queries.CreateCourse(ctx, sqlc.CreateCourseParams{
 		Title:          metadata.Title,
 		Slug:           slug,
@@ -164,7 +163,7 @@ func (s *Service) ImportCourse(ctx context.Context, coursePath string, coursesDi
 		return nil, fmt.Errorf("failed to create course: %w", err)
 	}
 
-	// Import sections and lectures
+	// Import all sections and lectures
 	for _, sectionMeta := range metadata.Sections {
 		section, err := s.queries.CreateSection(ctx, sqlc.CreateSectionParams{
 			CourseID:      course.ID,
@@ -176,7 +175,6 @@ func (s *Service) ImportCourse(ctx context.Context, coursePath string, coursesDi
 			return nil, fmt.Errorf("failed to create section %s: %w", sectionMeta.Title, err)
 		}
 
-		// Import lectures for this section
 		for _, lectureMeta := range sectionMeta.Lectures {
 			isQuiz := false
 			isDownloadable := true
@@ -188,7 +186,7 @@ func (s *Service) ImportCourse(ctx context.Context, coursePath string, coursesDi
 				CourseID:         course.ID,
 				Title:            lectureMeta.Title,
 				LectureNumber:    int64(lectureMeta.LectureNumber),
-				LectureType:      "video",
+				LectureType:      lectureMeta.LectureType,
 				IsQuiz:           &isQuiz,
 				IsDownloadable:   &isDownloadable,
 				FilePath:         lectureMeta.VideoPath,
@@ -204,11 +202,9 @@ func (s *Service) ImportCourse(ctx context.Context, coursePath string, coursesDi
 				return nil, fmt.Errorf("failed to create lecture %s: %w", lectureMeta.Title, err)
 			}
 
-			// Import subtitles for this lecture
 			for _, subtitlePath := range lectureMeta.SubtitlePaths {
 				language := detectSubtitleLanguage(subtitlePath)
 				format := detectSubtitleFormat(subtitlePath)
-
 				_, err := s.queries.CreateSubtitle(ctx, sqlc.CreateSubtitleParams{
 					LectureID: lecture.ID,
 					Language:  language,
@@ -232,6 +228,122 @@ func (s *Service) ImportCourse(ctx context.Context, coursePath string, coursesDi
 	}, nil
 }
 
+// syncExistingCourse re-scans an existing course and inserts any missing
+// sections/lectures without touching existing data (preserves user progress).
+func (s *Service) syncExistingCourse(
+	ctx context.Context,
+	course *sqlc.Course,
+	metadata *CourseMetadata,
+	int64Ptr func(int64) *int64,
+) (*ImportCourseResult, error) {
+	var addedLectures int
+
+	for _, sectionMeta := range metadata.Sections {
+		// Find or create section
+		section, err := s.queries.GetSectionByCourseAndNumber(ctx, sqlc.GetSectionByCourseAndNumberParams{
+			CourseID:      course.ID,
+			SectionNumber: int64(sectionMeta.SectionNumber),
+		})
+		if err != nil {
+			// Section doesn't exist — create it
+			section, err = s.queries.CreateSection(ctx, sqlc.CreateSectionParams{
+				CourseID:      course.ID,
+				Title:         sectionMeta.Title,
+				SectionNumber: int64(sectionMeta.SectionNumber),
+				Description:   nil,
+			})
+			if err != nil {
+				return nil, fmt.Errorf("failed to create section %s: %w", sectionMeta.Title, err)
+			}
+			fmt.Printf("[Sync] Created new section: %s\n", sectionMeta.Title)
+		}
+
+		// Check each lecture
+		for _, lectureMeta := range sectionMeta.Lectures {
+			// Check if lecture already exists (by file_path + course_id)
+			_, err := s.queries.GetLectureByFilePath(ctx, sqlc.GetLectureByFilePathParams{
+				CourseID:  course.ID,
+				FilePath:  lectureMeta.VideoPath,
+			})
+			if err == nil {
+				// Lecture already exists — skip
+				continue
+			}
+
+			// Lecture doesn't exist — create it
+			isQuiz := false
+			isDownloadable := true
+			hasSubtitles := len(lectureMeta.SubtitlePaths) > 0
+			originalFilename := filepath.Base(lectureMeta.VideoPath)
+
+			lecture, err := s.queries.CreateLecture(ctx, sqlc.CreateLectureParams{
+				SectionID:        section.ID,
+				CourseID:         course.ID,
+				Title:            lectureMeta.Title,
+				LectureNumber:    int64(lectureMeta.LectureNumber),
+				LectureType:      lectureMeta.LectureType,
+				IsQuiz:           &isQuiz,
+				IsDownloadable:   &isDownloadable,
+				FilePath:         lectureMeta.VideoPath,
+				OriginalFilename: &originalFilename,
+				ResourcesPath:    nil,
+				FileSize:         nil,
+				Duration:         int64Ptr(lectureMeta.Duration),
+				VideoCodec:       nil,
+				Resolution:       nil,
+				HasSubtitles:     &hasSubtitles,
+			})
+			if err != nil {
+				return nil, fmt.Errorf("failed to create lecture %s: %w", lectureMeta.Title, err)
+			}
+
+			fmt.Printf("[Sync] Added lecture: %s (type: %s)\n", lectureMeta.Title, lectureMeta.LectureType)
+			addedLectures++
+
+			// Import subtitles for new lectures
+			for _, subtitlePath := range lectureMeta.SubtitlePaths {
+				language := detectSubtitleLanguage(subtitlePath)
+				format := detectSubtitleFormat(subtitlePath)
+				_, err := s.queries.CreateSubtitle(ctx, sqlc.CreateSubtitleParams{
+					LectureID: lecture.ID,
+					Language:  language,
+					Format:    format,
+					FilePath:  subtitlePath,
+				})
+				if err != nil {
+					fmt.Printf("[Sync] Warning: failed to create subtitle: %v\n", err)
+				}
+			}
+		}
+	}
+
+	// Update course stats (total lectures/duration may have changed)
+	var totalDuration int64
+	var totalLectures int
+	for _, section := range metadata.Sections {
+		for _, lecture := range section.Lectures {
+			totalDuration += lecture.Duration
+			totalLectures++
+		}
+	}
+	_ = s.queries.UpdateCourseStats(ctx, sqlc.UpdateCourseStatsParams{
+		TotalDuration: int64Ptr(totalDuration),
+		TotalLectures: int64Ptr(int64(totalLectures)),
+		ID:            course.ID,
+	})
+
+	fmt.Printf("[Sync] Course sync complete: %s (%d new lectures added)\n", course.Title, addedLectures)
+
+	return &ImportCourseResult{
+		CourseID:      course.ID,
+		Title:         course.Title,
+		TotalSections: len(metadata.Sections),
+		TotalLectures: totalLectures,
+		TotalDuration: totalDuration,
+		AlreadyExists: addedLectures == 0,
+	}, nil
+}
+
 // GetAllCourses retrieves all courses (for library view)
 func (s *Service) GetAllCourses(ctx context.Context) ([]*sqlc.Course, error) {
 	// Get all courses (no pagination for Sprint 1)
@@ -250,6 +362,29 @@ func (s *Service) GetAllCourses(ctx context.Context) ([]*sqlc.Course, error) {
 	}
 
 	return result, nil
+}
+
+// GetHtmlLectureContent reads an HTML lecture file from disk and returns its content.
+// The frontend uses this with iframe srcdoc= to render HTML inline, avoiding
+// cross-origin issues between the wails:// scheme and http://127.0.0.1.
+func (s *Service) GetHtmlLectureContent(ctx context.Context, lectureID int64) (string, error) {
+	lecture, err := s.queries.GetLectureByID(ctx, lectureID)
+	if err != nil {
+		return "", fmt.Errorf("lecture not found: %w", err)
+	}
+
+	course, err := s.queries.GetCourseByID(ctx, lecture.CourseID)
+	if err != nil {
+		return "", fmt.Errorf("course not found: %w", err)
+	}
+
+	absPath := filepath.Join(course.CoursePath, lecture.FilePath)
+	content, err := os.ReadFile(absPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to read HTML file %s: %w", absPath, err)
+	}
+
+	return string(content), nil
 }
 
 // GetCourseByID retrieves a single course by ID

@@ -1,7 +1,7 @@
 # CourseFin Backend Architecture
 
-**Version:** 1.0.0  
-**Last Updated:** February 18, 2026  
+**Version:** 1.0.0
+**Last Updated:** February 18, 2026
 **Status:** Implementation Guide
 
 ---
@@ -14,13 +14,11 @@
 4. [Directory Structure](#4-directory-structure)
 5. [Layer Responsibilities](#5-layer-responsibilities)
 6. [Database Layer (sqlc + goose)](#6-database-layer-sqlc--goose)
-7. [Repository Pattern](#7-repository-pattern)
-8. [Service Layer](#8-service-layer)
-9. [Dependency Injection](#9-dependency-injection)
-10. [Error Handling](#10-error-handling)
-11. [Testing Strategy](#11-testing-strategy)
-12. [Code Examples](#12-code-examples)
-13. [Best Practices](#13-best-practices)
+7. [Dependency Injection](#7-dependency-injection)
+8. [Error Handling](#8-error-handling)
+9. [Testing Strategy](#9-testing-strategy)
+10. [Code Examples](#10-code-examples)
+11. [Best Practices](#11-best-practices)
 
 ---
 
@@ -89,11 +87,11 @@ CourseFin follows a **Pragmatic Clean Architecture** approach, balancing:
 
 ### 2.3 What This Architecture Provides
 
-✅ **Testability**: Mock repositories and services easily  
-✅ **Flexibility**: Swap implementations without changing business logic  
-✅ **Type Safety**: Compile-time errors for SQL queries (sqlc)  
-✅ **Maintainability**: Clear structure, easy to navigate  
-✅ **Performance**: No ORM overhead, raw SQL performance  
+✅ **Testability**: Mock repositories and services easily
+✅ **Flexibility**: Swap implementations without changing business logic
+✅ **Type Safety**: Compile-time errors for SQL queries (sqlc)
+✅ **Maintainability**: Clear structure, easy to navigate
+✅ **Performance**: No ORM overhead, raw SQL performance
 
 ---
 
@@ -287,55 +285,19 @@ type Lecture struct {
 }
 ```
 
-### 5.2 Repository Layer (`internal/*/repository.go`)
-
-**Purpose**: Data access and persistence
-
-**Responsibilities**:
-- Implement domain repository interfaces
-- Use sqlc-generated queries via Querier interface
-- Map between sqlc models and domain entities
-- Handle database transactions
-- No business logic (pure data operations)
-
-**Pattern**:
-```go
-// internal/course/repository.go
-package course
-
-import (
-    "context"
-    "coursefin/internal/domain"
-    "coursefin/internal/sqlc"
-)
-
-type Repository struct {
-    querier sqlc.Querier  // ← Use Querier interface, not *Queries
-}
-
-func NewRepository(querier sqlc.Querier) *Repository {
-    return &Repository{querier: querier}
-}
-
-func (r *Repository) GetByID(ctx context.Context, id int64) (*domain.Course, error) {
-    row, err := r.querier.GetCourse(ctx, id)
-    if err != nil {
-        return nil, domain.ErrNotFound
-    }
-    return toDomainCourse(row), nil
-}
-```
-
-### 5.3 Service Layer (`internal/*/service.go`)
+### 5.2 Service Layer (`internal/*/service.go`)
 
 **Purpose**: Business logic and orchestration
 
+**Design Decision**: CourseFin services use `sqlc.Querier` directly — no separate `repository.go` layer.
+This is a deliberate pragmatic choice: sqlc already generates type-safe, testable query functions, so wrapping
+them in another repository layer adds boilerplate with no real benefit for a single-database desktop app.
+
 **Responsibilities**:
-- Orchestrate operations across repositories
+- Hold a `sqlc.Querier` interface field (not the concrete `*sqlc.Queries` — use the interface for testability)
 - Implement business rules and validation
-- Call external services (scraper, player)
-- Transaction management for multi-step operations
-- Return domain entities or DTOs
+- Orchestrate multi-step DB operations (e.g., import course → create sections → create lectures)
+- Return domain entities or DTOs to the Wails app layer
 
 **Pattern**:
 ```go
@@ -344,54 +306,48 @@ package course
 
 import (
     "context"
-    "coursefin/internal/domain"
-    "coursefin/internal/scraper"
+    "coursefin/internal/sqlc"
 )
 
 type Service struct {
-    repo    domain.CourseRepository
-    scraper *scraper.Service
+    queries sqlc.Querier  // ← Interface, not *sqlc.Queries (enables mocking/testing)
 }
 
-func NewService(repo domain.CourseRepository, scraper *scraper.Service) *Service {
-    return &Service{
-        repo:    repo,
-        scraper: scraper,
-    }
+func NewService(queries sqlc.Querier) *Service {
+    return &Service{queries: queries}
 }
 
-func (s *Service) ImportCourse(ctx context.Context, folderPath, udemyURL string) (*domain.Course, error) {
-    // 1. Scan folder structure
-    structure, err := ScanCourseFolder(folderPath)
+func (s *Service) ImportCourse(ctx context.Context, folderPath, coursesDir string) (*ImportCourseResult, error) {
+    // 1. Scan filesystem
+    metadata, err := ScanCourseFolder(folderPath, coursesDir)
     if err != nil {
         return nil, err
     }
-    
-    // 2. Scrape Udemy metadata
-    metadata, err := s.scraper.ScrapeUdemyCourse(ctx, udemyURL)
-    if err != nil {
-        // Continue with default metadata
-        metadata = defaultMetadata(folderPath)
+
+    // 2. Check if already exists → smart sync
+    existing, err := s.queries.GetCourseByPath(ctx, folderPath)
+    if err == nil && existing != nil {
+        return s.syncExistingCourse(ctx, existing, metadata, ...)
     }
-    
-    // 3. Create course entity
-    course := &domain.Course{
-        Title:      metadata.Title,
-        Slug:       generateSlug(metadata.Title),
-        CoursePath: folderPath,
-        // ...
-    }
-    
-    // 4. Save to database
-    if err := s.repo.Create(ctx, course); err != nil {
-        return nil, err
-    }
-    
-    return course, nil
+
+    // 3. Fresh import → create course, sections, lectures
+    course, err := s.queries.CreateCourse(ctx, sqlc.CreateCourseParams{...})
+    // ...
+    return &ImportCourseResult{...}, nil
 }
 ```
 
-### 5.4 Infrastructure Layer (`internal/infrastructure/`)
+**Why no `repository.go`?**
+
+| Concern | How it's handled |
+|---------|------------------|
+| **Testability** | `sqlc.Querier` is an interface — swap with a mock in tests |
+| **Type safety** | sqlc generates compile-time safe query functions directly |
+| **Abstraction** | No need: single SQLite database, no plans to swap storage |
+| **Transactions** | Handled in service methods directly via context |
+
+
+### 5.3 Infrastructure Layer (`internal/infrastructure/`)
 
 **Purpose**: External dependencies and platform-specific code
 
@@ -401,7 +357,7 @@ func (s *Service) ImportCourse(ctx context.Context, folderPath, udemyURL string)
 - Platform-specific paths (app data directory)
 - Logging setup
 
-### 5.5 Wails App Layer (`app.go`)
+### 5.4 Wails App Layer (`app.go`)
 
 **Purpose**: Expose methods to frontend via Wails bindings
 
@@ -509,7 +465,7 @@ WHERE id = ?;
 DELETE FROM courses WHERE id = ?;
 
 -- name: GetCourseWithSections :many
-SELECT 
+SELECT
     c.*,
     s.id as section_id,
     s.title as section_title,
@@ -562,10 +518,10 @@ type Querier interface {
 
 **Why use Querier interface?**
 
-✅ **Testability**: Mock the entire database layer  
-✅ **Transactions**: Pass `*sql.Tx` or `*sql.DB` (both implement Querier)  
-✅ **Flexibility**: Swap implementations without changing repository code  
-✅ **Interface Segregation**: Define custom interfaces with subset of methods  
+✅ **Testability**: Mock the entire database layer
+✅ **Transactions**: Pass `*sql.Tx` or `*sql.DB` (both implement Querier)
+✅ **Flexibility**: Swap implementations without changing repository code
+✅ **Interface Segregation**: Define custom interfaces with subset of methods
 
 ### 6.5 Database Migrations (goose)
 
@@ -616,7 +572,7 @@ package infrastructure
 import (
     "database/sql"
     "embed"
-    
+
     "github.com/pressly/goose/v3"
     _ "modernc.org/sqlite"
 )
@@ -626,15 +582,15 @@ var embedMigrations embed.FS
 
 func RunMigrations(db *sql.DB) error {
     goose.SetBaseFS(embedMigrations)
-    
+
     if err := goose.SetDialect("sqlite3"); err != nil {
         return err
     }
-    
+
     if err := goose.Up(db, "migrations"); err != nil {
         return err
     }
-    
+
     return nil
 }
 ```
@@ -656,311 +612,29 @@ goose -dir migrations create add_collections sql
 
 ---
 
-## 7. Repository Pattern
+## 7. Dependency Injection
 
-### 7.1 Define Repository Interfaces
+### 7.1 Manual DI in main.go
 
-**In `internal/domain/repository.go`**:
+Services are wired explicitly in `main.go` / `startup()`. Each service receives a `sqlc.Querier` directly:
+
 ```go
-package domain
+// main.go
+queries := sqlc.New(db)  // *sqlc.Queries implements sqlc.Querier
 
-import "context"
+// Services get the Querier interface directly (no repository wrapper)
+courseSvc  := course.NewService(queries)
+settingsSvc := settings.NewService(queries)
+playerSvc  := player.NewService(db, coursesDir, videoServer)
 
-// CourseRepository defines data access for courses
-type CourseRepository interface {
-    // Queries
-    GetByID(ctx context.Context, id int64) (*Course, error)
-    GetBySlug(ctx context.Context, slug string) (*Course, error)
-    GetAll(ctx context.Context) ([]Course, error)
-    
-    // Commands
-    Create(ctx context.Context, course *Course) error
-    Update(ctx context.Context, course *Course) error
-    Delete(ctx context.Context, id int64) error
-    
-    // Complex queries
-    GetCourseWithSections(ctx context.Context, id int64) (*CourseDetail, error)
-}
-
-type ProgressRepository interface {
-    GetByLectureID(ctx context.Context, lectureID int64) (*Progress, error)
-    GetByCourseID(ctx context.Context, courseID int64) ([]Progress, error)
-    Upsert(ctx context.Context, progress *Progress) error
-    MarkComplete(ctx context.Context, lectureID int64) error
-}
-
-type SettingsRepository interface {
-    Get(ctx context.Context, key string) (string, error)
-    Set(ctx context.Context, key, value string) error
-    GetAll(ctx context.Context) (map[string]string, error)
+app := &App{
+    courseSvc:   courseSvc,
+    settingsSvc: settingsSvc,
+    playerSvc:   playerSvc,
 }
 ```
 
-### 7.2 Implement Repositories with sqlc Querier
-
-**Example: `internal/course/repository.go`**
-```go
-package course
-
-import (
-    "context"
-    "database/sql"
-    
-    "coursefin/internal/domain"
-    "coursefin/internal/sqlc"
-)
-
-type Repository struct {
-    querier sqlc.Querier  // ← Querier interface, not concrete *Queries
-}
-
-// NewRepository creates a new course repository
-func NewRepository(querier sqlc.Querier) *Repository {
-    return &Repository{querier: querier}
-}
-
-// GetByID retrieves a course by ID
-func (r *Repository) GetByID(ctx context.Context, id int64) (*domain.Course, error) {
-    row, err := r.querier.GetCourse(ctx, id)
-    if err != nil {
-        if err == sql.ErrNoRows {
-            return nil, domain.ErrNotFound
-        }
-        return nil, err
-    }
-    
-    return toDomainCourse(row), nil
-}
-
-// GetAll retrieves all courses
-func (r *Repository) GetAll(ctx context.Context) ([]domain.Course, error) {
-    rows, err := r.querier.ListCourses(ctx)
-    if err != nil {
-        return nil, err
-    }
-    
-    courses := make([]domain.Course, len(rows))
-    for i, row := range rows {
-        courses[i] = *toDomainCourse(row)
-    }
-    
-    return courses, nil
-}
-
-// Create inserts a new course
-func (r *Repository) Create(ctx context.Context, course *domain.Course) error {
-    result, err := r.querier.CreateCourse(ctx, sqlc.CreateCourseParams{
-        Title:          course.Title,
-        Slug:           course.Slug,
-        Description:    toNullString(course.Description),
-        InstructorName: toNullString(course.InstructorName),
-        CoursePath:     course.CoursePath,
-    })
-    if err != nil {
-        return err
-    }
-    
-    course.ID = result.ID
-    course.CreatedAt = result.CreatedAt
-    course.UpdatedAt = result.UpdatedAt
-    
-    return nil
-}
-
-// Update modifies an existing course
-func (r *Repository) Update(ctx context.Context, course *domain.Course) error {
-    return r.querier.UpdateCourse(ctx, sqlc.UpdateCourseParams{
-        ID:          course.ID,
-        Title:       course.Title,
-        Description: toNullString(course.Description),
-    })
-}
-
-// Delete removes a course
-func (r *Repository) Delete(ctx context.Context, id int64) error {
-    return r.querier.DeleteCourse(ctx, id)
-}
-
-// Helper: Convert sqlc model to domain entity
-func toDomainCourse(row sqlc.Course) *domain.Course {
-    return &domain.Course{
-        ID:             row.ID,
-        Title:          row.Title,
-        Slug:           row.Slug,
-        Description:    fromNullString(row.Description),
-        InstructorName: fromNullString(row.InstructorName),
-        CoursePath:     row.CoursePath,
-        TotalDuration:  int(fromNullInt64(row.TotalDuration)),
-        TotalLectures:  int(fromNullInt64(row.TotalLectures)),
-        CreatedAt:      row.CreatedAt,
-        UpdatedAt:      row.UpdatedAt,
-    }
-}
-
-// Helpers for nullable types
-func toNullString(s string) sql.NullString {
-    return sql.NullString{String: s, Valid: s != ""}
-}
-
-func fromNullString(ns sql.NullString) string {
-    if ns.Valid {
-        return ns.String
-    }
-    return ""
-}
-
-func fromNullInt64(ni sql.NullInt64) int64 {
-    if ni.Valid {
-        return ni.Int64
-    }
-    return 0
-}
-```
-
-### 7.3 Transactions with Querier
-
-**Using transactions across repositories**:
-
-```go
-// internal/course/service.go
-func (s *Service) ImportCourseWithSections(ctx context.Context, req ImportRequest) error {
-    // Begin transaction
-    tx, err := s.db.BeginTx(ctx, nil)
-    if err != nil {
-        return err
-    }
-    defer tx.Rollback()
-    
-    // Create Querier from transaction
-    txQuerier := sqlc.New(tx)
-    
-    // Use transaction-aware repositories
-    courseRepo := NewRepository(txQuerier)
-    sectionRepo := section.NewRepository(txQuerier)
-    
-    // 1. Insert course
-    course := &domain.Course{...}
-    if err := courseRepo.Create(ctx, course); err != nil {
-        return err
-    }
-    
-    // 2. Insert sections
-    for _, section := range sections {
-        section.CourseID = course.ID
-        if err := sectionRepo.Create(ctx, section); err != nil {
-            return err
-        }
-    }
-    
-    // Commit transaction
-    return tx.Commit()
-}
-```
-
----
-
-## 8. Service Layer
-
-### 8.1 Service Structure
-
-```go
-// internal/course/service.go
-package course
-
-import (
-    "context"
-    "coursefin/internal/domain"
-    "coursefin/internal/scraper"
-)
-
-type Service struct {
-    repo     domain.CourseRepository
-    scraper  *scraper.Service
-    // Add other dependencies as needed
-}
-
-func NewService(repo domain.CourseRepository, scraper *scraper.Service) *Service {
-    return &Service{
-        repo:    repo,
-        scraper: scraper,
-    }
-}
-```
-
-### 8.2 Service Methods
-
-**Query operations**:
-```go
-func (s *Service) GetAll(ctx context.Context) ([]domain.Course, error) {
-    return s.repo.GetAll(ctx)
-}
-
-func (s *Service) GetByID(ctx context.Context, id int64) (*domain.Course, error) {
-    return s.repo.GetByID(ctx, id)
-}
-```
-
-**Complex business logic**:
-```go
-func (s *Service) ImportCourse(ctx context.Context, folderPath, udemyURL string) (*domain.Course, error) {
-    // 1. Validate folder exists
-    if !folderExists(folderPath) {
-        return nil, domain.ErrInvalidPath
-    }
-    
-    // 2. Scan folder structure
-    structure, err := ScanCourseFolder(folderPath)
-    if err != nil {
-        return nil, err
-    }
-    
-    // 3. Scrape metadata (graceful degradation)
-    metadata, err := s.scraper.ScrapeUdemyCourse(ctx, udemyURL)
-    if err != nil {
-        // Use folder name as fallback
-        metadata = &scraper.Metadata{
-            Title: extractTitleFromPath(folderPath),
-        }
-    }
-    
-    // 4. Create course entity
-    course := &domain.Course{
-        Title:         metadata.Title,
-        Slug:          generateSlug(metadata.Title),
-        Description:   metadata.Description,
-        InstructorName: metadata.InstructorName,
-        CoursePath:    folderPath,
-        TotalLectures: len(structure.Lectures),
-    }
-    
-    // 5. Validate no duplicate
-    existing, _ := s.repo.GetBySlug(ctx, course.Slug)
-    if existing != nil {
-        return nil, domain.ErrAlreadyExists
-    }
-    
-    // 6. Save to database
-    if err := s.repo.Create(ctx, course); err != nil {
-        return nil, err
-    }
-    
-    return course, nil
-}
-```
-
-### 8.3 Service Best Practices
-
-1. **Return domain entities**: Services return `domain.Course`, not sqlc models
-2. **Handle errors gracefully**: Wrap errors with context
-3. **Single responsibility**: Each method does one thing
-4. **Validate inputs**: Check parameters before calling repository
-5. **No database details**: Services don't know about SQL or sqlc
-
----
-
-## 9. Dependency Injection
-
-### 9.1 Manual DI in main.go
+### 7.1 Manual DI in main.go
 
 **Explicit dependency wiring**:
 
@@ -972,7 +646,7 @@ import (
     "context"
     "database/sql"
     "log"
-    
+
     "coursefin/internal/course"
     "coursefin/internal/infrastructure"
     "coursefin/internal/player"
@@ -980,7 +654,7 @@ import (
     "coursefin/internal/scraper"
     "coursefin/internal/settings"
     "coursefin/internal/sqlc"
-    
+
     "github.com/wailsapp/wails/v2"
     "github.com/wailsapp/wails/v2/pkg/options"
 )
@@ -992,27 +666,27 @@ func main() {
         log.Fatal(err)
     }
     defer db.Close()
-    
+
     // 2. Run migrations
     if err := infrastructure.RunMigrations(db); err != nil {
         log.Fatal(err)
     }
-    
+
     // 3. Create sqlc Queries (implements Querier interface)
     queries := sqlc.New(db)
-    
+
     // 4. Initialize repositories
     courseRepo := course.NewRepository(queries)
     progressRepo := progress.NewRepository(queries)
     settingsRepo := settings.NewRepository(queries)
-    
+
     // 5. Initialize services
     scraperSvc := scraper.NewService()
     courseSvc := course.NewService(courseRepo, scraperSvc)
     progressSvc := progress.NewService(progressRepo)
     playerSvc := player.NewService(progressSvc)
     settingsSvc := settings.NewService(settingsRepo)
-    
+
     // 6. Create Wails app
     app := &App{
         db:              db,
@@ -1021,7 +695,7 @@ func main() {
         progressService: progressSvc,
         settingsService: settingsSvc,
     }
-    
+
     // 7. Run Wails
     if err := wails.Run(&options.App{
         Title:     "CourseFin",
@@ -1046,7 +720,7 @@ package main
 import (
     "context"
     "database/sql"
-    
+
     "coursefin/internal/course"
     "coursefin/internal/player"
     "coursefin/internal/progress"
@@ -1149,11 +823,11 @@ func (s *Service) ImportCourse(ctx context.Context, folderPath, udemyURL string)
     if err != nil {
         return nil, fmt.Errorf("import course: %w", err)
     }
-    
+
     if err := s.repo.Create(ctx, course); err != nil {
         return nil, fmt.Errorf("save course to database: %w", err)
     }
-    
+
     return course, nil
 }
 ```
@@ -1165,7 +839,7 @@ func (a *App) ImportCourse(folderPath, udemyURL string) error {
     if err != nil {
         // Log error
         log.Printf("import course failed: %v", err)
-        
+
         // Return user-friendly message
         if errors.Is(err, domain.ErrAlreadyExists) {
             return fmt.Errorf("course already imported")
@@ -1209,11 +883,11 @@ package course_test
 import (
     "context"
     "testing"
-    
+
     "coursefin/internal/course"
     "coursefin/internal/domain"
     "coursefin/internal/sqlc"
-    
+
     "github.com/stretchr/testify/assert"
     "github.com/stretchr/testify/mock"
 )
@@ -1232,17 +906,17 @@ func (m *MockQuerier) GetCourse(ctx context.Context, id int64) (sqlc.Course, err
 func TestRepository_GetByID(t *testing.T) {
     mockQuerier := new(MockQuerier)
     repo := course.NewRepository(mockQuerier)
-    
+
     expectedRow := sqlc.Course{
         ID:    1,
         Title: "Test Course",
         Slug:  "test-course",
     }
-    
+
     mockQuerier.On("GetCourse", mock.Anything, int64(1)).Return(expectedRow, nil)
-    
+
     result, err := repo.GetByID(context.Background(), 1)
-    
+
     assert.NoError(t, err)
     assert.Equal(t, "Test Course", result.Title)
     mockQuerier.AssertExpectations(t)
@@ -1260,10 +934,10 @@ package course_test
 import (
     "context"
     "testing"
-    
+
     "coursefin/internal/course"
     "coursefin/internal/domain"
-    
+
     "github.com/stretchr/testify/assert"
     "github.com/stretchr/testify/mock"
 )
@@ -1290,18 +964,18 @@ func (m *MockCourseRepository) Create(ctx context.Context, course *domain.Course
 func TestService_GetByID(t *testing.T) {
     mockRepo := new(MockCourseRepository)
     mockScraper := new(MockScraperService)
-    
+
     svc := course.NewService(mockRepo, mockScraper)
-    
+
     expectedCourse := &domain.Course{
         ID:    1,
         Title: "Test Course",
     }
-    
+
     mockRepo.On("GetByID", mock.Anything, int64(1)).Return(expectedCourse, nil)
-    
+
     result, err := svc.GetByID(context.Background(), 1)
-    
+
     assert.NoError(t, err)
     assert.Equal(t, "Test Course", result.Title)
     mockRepo.AssertExpectations(t)
@@ -1318,26 +992,26 @@ func TestIntegration_CourseRepository(t *testing.T) {
     db, err := sql.Open("sqlite", ":memory:")
     require.NoError(t, err)
     defer db.Close()
-    
+
     // Run migrations
     err = infrastructure.RunMigrations(db)
     require.NoError(t, err)
-    
+
     // Create repository with real queries
     queries := sqlc.New(db)
     repo := course.NewRepository(queries)
-    
+
     // Test Create
     course := &domain.Course{
         Title:      "Integration Test Course",
         Slug:       "integration-test",
         CoursePath: "/tmp/course",
     }
-    
+
     err = repo.Create(context.Background(), course)
     require.NoError(t, err)
     assert.NotZero(t, course.ID)
-    
+
     // Test GetByID
     result, err := repo.GetByID(context.Background(), course.ID)
     require.NoError(t, err)
@@ -1449,7 +1123,7 @@ func NewService(repo domain.ProgressRepository) *Service {
 
 func (s *Service) UpdateProgress(ctx context.Context, lectureID, courseID, position, duration int) error {
     completed := float64(position)/float64(duration) > 0.9
-    
+
     progress := &domain.Progress{
         LectureID:       int64(lectureID),
         CourseID:        int64(courseID),
@@ -1458,7 +1132,7 @@ func (s *Service) UpdateProgress(ctx context.Context, lectureID, courseID, posit
         TotalDuration:   duration,
         Completed:       completed,
     }
-    
+
     return s.repo.Upsert(ctx, progress)
 }
 ```
