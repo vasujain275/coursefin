@@ -14,9 +14,20 @@ import (
 	"strings"
 )
 
-// VideoServer manages a local HTTP server for serving video files
-// This is needed because WebKitGTK in Wails doesn't properly handle
-// video elements through the AssetHandler
+// VideoServer manages a local HTTP server for serving video files.
+// A dedicated HTTP server is used because WebKitGTK (Linux) and WebView2
+// (Windows) both have limitations with the Wails AssetHandler for media:
+//
+//   - WebKitGTK does not support range requests through the asset handler,
+//     which breaks seeking in HTML5 video.
+//   - On Windows, embedding a Windows-style absolute path (e.g. C:\Users\...)
+//     directly in a URL path causes Chromium/WebView2 to misinterpret "C:" as
+//     a URL scheme, silently failing to load the video.
+//
+// The solution is a plain net/http server on a loopback port that:
+//  1. Receives the file path as a query parameter (?path=...) so that it is
+//     percent-encoded as an opaque value, avoiding any scheme/path ambiguity.
+//  2. Manually handles byte-range requests so seeking works cross-platform.
 type VideoServer struct {
 	server   *http.Server
 	listener net.Listener
@@ -32,17 +43,17 @@ func NewVideoServer() (*VideoServer, error) {
 	}
 
 	port := listener.Addr().(*net.TCPAddr).Port
-	fmt.Printf("[VideoServer] Starting on port %d\n", port)
 
 	vs := &VideoServer{
 		listener: listener,
 		port:     port,
 	}
 
-	// Create HTTP server with video handler
+	// Register handlers on exact paths (no trailing slash) so the mux does
+	// not strip any path prefix — the file path is carried in the query string.
 	mux := http.NewServeMux()
-	mux.HandleFunc("/video/", vs.handleVideo)
-	mux.HandleFunc("/subtitle/", vs.handleSubtitle)
+	mux.HandleFunc("/video", vs.handleVideo)
+	mux.HandleFunc("/subtitle", vs.handleSubtitle)
 
 	vs.server = &http.Server{
 		Handler: mux,
@@ -55,7 +66,6 @@ func NewVideoServer() (*VideoServer, error) {
 		}
 	}()
 
-	fmt.Printf("[VideoServer] Started successfully on http://127.0.0.1:%d\n", port)
 	return vs, nil
 }
 
@@ -64,52 +74,48 @@ func (vs *VideoServer) GetPort() int {
 	return vs.port
 }
 
-// GetVideoURL returns the full URL for a video file
+// GetVideoURL returns the full URL for serving a video file.
+//
+// The absolute file-system path is passed as a query parameter rather than
+// embedded in the URL path.  This avoids the well-known Chromium/WebView2
+// issue where a Windows drive letter ("C:") in the URL path is interpreted as
+// a URL scheme, preventing the video from loading.
 func (vs *VideoServer) GetVideoURL(absolutePath string) string {
-	// URL-encode the path
-	encodedPath := encodePathForURL(absolutePath)
-	return fmt.Sprintf("http://127.0.0.1:%d/video%s", vs.port, encodedPath)
+	return fmt.Sprintf("http://127.0.0.1:%d/video?path=%s", vs.port, url.QueryEscape(absolutePath))
 }
 
-// GetSubtitleURL returns the full URL for a subtitle file
+// GetSubtitleURL returns the full URL for serving a subtitle file.
+// See GetVideoURL for why the path is a query parameter.
 func (vs *VideoServer) GetSubtitleURL(absolutePath string) string {
-	// URL-encode the path
-	encodedPath := encodePathForURL(absolutePath)
-	return fmt.Sprintf("http://127.0.0.1:%d/subtitle%s", vs.port, encodedPath)
+	return fmt.Sprintf("http://127.0.0.1:%d/subtitle?path=%s", vs.port, url.QueryEscape(absolutePath))
 }
 
 // Stop gracefully shuts down the video server
 func (vs *VideoServer) Stop() error {
 	if vs.server != nil {
-		fmt.Println("[VideoServer] Shutting down...")
 		return vs.server.Shutdown(context.Background())
 	}
 	return nil
 }
 
-// encodePathForURL encodes each segment of a path while preserving slashes
-func encodePathForURL(path string) string {
-	segments := strings.Split(path, "/")
-	for i, seg := range segments {
-		segments[i] = url.PathEscape(seg)
-	}
-	return strings.Join(segments, "/")
-}
-
 // handleVideo serves video files with range request support
 func (vs *VideoServer) handleVideo(w http.ResponseWriter, r *http.Request) {
-	// Extract path after /video
-	encodedPath := strings.TrimPrefix(r.URL.Path, "/video")
-
-	// URL-decode the path
-	absolutePath, err := url.PathUnescape(encodedPath)
-	if err != nil {
-		fmt.Printf("[VideoServer] Failed to decode path: %v\n", err)
-		http.Error(w, "Invalid path encoding", http.StatusBadRequest)
+	// The file path is passed as ?path=<url.QueryEscape(absolutePath)>.
+	// url.QueryEscape encodes the entire path atomically (including drive
+	// letters such as "C:" and directory separators), so no ambiguity arises
+	// when the URL is parsed by Chromium/WebView2 or any other client.
+	rawPath := r.URL.Query().Get("path")
+	if rawPath == "" {
+		http.Error(w, "Missing path parameter", http.StatusBadRequest)
 		return
 	}
 
-	fmt.Printf("[VideoServer] Serving video: %s\n", absolutePath)
+	// QueryEscape / QueryUnescape round-trips cleanly — no manual
+	// percent-decoding needed beyond what Go's url package already did for us
+	// when populating r.URL.Query().
+	// filepath.FromSlash is a no-op on Unix; on Windows it converts forward
+	// slashes to backslashes so os.Open works correctly.
+	absolutePath := filepath.FromSlash(rawPath)
 
 	// Security check
 	if strings.Contains(absolutePath, "..") {
@@ -161,7 +167,6 @@ func (vs *VideoServer) handleVideo(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Accept-Ranges", "bytes")
 		w.WriteHeader(http.StatusOK)
 		io.Copy(w, file)
-		fmt.Printf("[VideoServer] Served full file: %d bytes\n", fileSize)
 		return
 	}
 
@@ -215,22 +220,18 @@ func (vs *VideoServer) handleVideo(w http.ResponseWriter, r *http.Request) {
 
 	// Copy the range
 	io.CopyN(w, file, contentLength)
-	fmt.Printf("[VideoServer] Served range %d-%d/%d (%d bytes)\n", start, end, fileSize, contentLength)
 }
 
 // handleSubtitle serves subtitle files
 func (vs *VideoServer) handleSubtitle(w http.ResponseWriter, r *http.Request) {
-	// Extract path after /subtitle
-	encodedPath := strings.TrimPrefix(r.URL.Path, "/subtitle")
-
-	// URL-decode the path
-	absolutePath, err := url.PathUnescape(encodedPath)
-	if err != nil {
-		http.Error(w, "Invalid path encoding", http.StatusBadRequest)
+	// Extract path from query parameter — same scheme as handleVideo.
+	rawPath := r.URL.Query().Get("path")
+	if rawPath == "" {
+		http.Error(w, "Missing path parameter", http.StatusBadRequest)
 		return
 	}
 
-	fmt.Printf("[VideoServer] Serving subtitle: %s\n", absolutePath)
+	absolutePath := filepath.FromSlash(rawPath)
 
 	// Security check
 	if strings.Contains(absolutePath, "..") {
@@ -307,17 +308,12 @@ func (h *VideoHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // serveVideo serves a video file with range request support for seeking
 // Path format: /videos/{url_encoded_absolute_path_to_video}
 func (h *VideoHandler) serveVideo(w http.ResponseWriter, r *http.Request, encodedPath string) {
-	fmt.Printf("[serveVideo] Encoded path: %s\n", encodedPath)
-
 	// URL-decode the path to handle spaces and special characters
 	absolutePath, err := url.PathUnescape(encodedPath)
 	if err != nil {
-		fmt.Printf("[serveVideo] Failed to decode path: %v\n", err)
 		http.Error(w, "Invalid path encoding", http.StatusBadRequest)
 		return
 	}
-
-	fmt.Printf("[serveVideo] Decoded path: %s\n", absolutePath)
 
 	// Security: Prevent directory traversal attacks
 	if strings.Contains(absolutePath, "..") {
@@ -368,17 +364,11 @@ func (h *VideoHandler) serveVideo(w http.ResponseWriter, r *http.Request, encode
 		return
 	}
 
-	// Comprehensive logging for debugging
-	fmt.Printf("[serveVideo] File info - Size: %d bytes, Path: %s\n", fileSize, filePath)
-	fmt.Printf("[serveVideo] Request - Method: %s, Range: %s\n", r.Method, r.Header.Get("Range"))
-
-	// PHASE 1.5: Manual range request handling for WebKitGTK compatibility
+	// Manual range request handling for WebKitGTK compatibility
 	rangeHeader := r.Header.Get("Range")
 
 	if rangeHeader == "" {
 		// No range request - serve the entire file
-		fmt.Println("[serveVideo] Serving full file (no range request)")
-
 		w.Header().Set("Content-Type", contentType)
 		w.Header().Set("Content-Length", strconv.FormatInt(fileSize, 10))
 		w.Header().Set("Accept-Ranges", "bytes")
@@ -391,11 +381,10 @@ func (h *VideoHandler) serveVideo(w http.ResponseWriter, r *http.Request, encode
 		// Copy entire file
 		_, err = io.Copy(w, file)
 		if err != nil {
-			fmt.Printf("[serveVideo] Error copying file: %v\n", err)
+			fmt.Printf("[VideoHandler] Error copying file: %v\n", err)
 			return
 		}
 
-		fmt.Println("[serveVideo] Full file served successfully")
 		return
 	}
 
@@ -440,12 +429,10 @@ func (h *VideoHandler) serveVideo(w http.ResponseWriter, r *http.Request, encode
 	// Calculate content length for this range
 	contentLength := end - start + 1
 
-	fmt.Printf("[serveVideo] Range request: bytes=%d-%d/%d (length: %d)\n", start, end, fileSize, contentLength)
-
 	// Seek to start position
 	_, err = file.Seek(start, io.SeekStart)
 	if err != nil {
-		fmt.Printf("[serveVideo] Error seeking to position %d: %v\n", start, err)
+		fmt.Printf("[VideoHandler] Error seeking: %v\n", err)
 		http.Error(w, "Error reading file", http.StatusInternalServerError)
 		return
 	}
@@ -465,11 +452,9 @@ func (h *VideoHandler) serveVideo(w http.ResponseWriter, r *http.Request, encode
 	// Copy the requested range
 	_, err = io.CopyN(w, file, contentLength)
 	if err != nil && err != io.EOF {
-		fmt.Printf("[serveVideo] Error copying range: %v\n", err)
+		fmt.Printf("[VideoHandler] Error copying range: %v\n", err)
 		return
 	}
-
-	fmt.Println("[serveVideo] Range served successfully")
 }
 
 // serveSubtitle serves a subtitle file (SRT/VTT)

@@ -159,6 +159,13 @@ func scanSectionLectures(sectionPath string, coursePath string) ([]LectureMetada
 			continue
 		}
 
+		// Skip duplicate files with -2 suffix (e.g., "001 Introduction-2.mp4")
+		// These are typically duplicate downloads from Udemy
+		baseName := strings.TrimSuffix(entry.Name(), ext)
+		if strings.HasSuffix(baseName, "-2") {
+			continue
+		}
+
 		// Calculate relative path from course folder (not coursesDir)
 		videoAbsPath := filepath.Join(sectionPath, entry.Name())
 		videoRelPath, err := filepath.Rel(coursePath, videoAbsPath)
@@ -246,6 +253,12 @@ func findSubtitles(sectionPath string, coursePath string, videoFileName string) 
 		if strings.HasPrefix(name, baseName) {
 			ext := strings.ToLower(filepath.Ext(name))
 			if ext == ".srt" || ext == ".vtt" {
+				// Skip duplicate subtitle files with -2 suffix (e.g., "001 Introduction_en-2.srt")
+				subtitleBaseName := strings.TrimSuffix(name, ext)
+				if strings.HasSuffix(subtitleBaseName, "-2") {
+					continue
+				}
+
 				// Calculate relative path from course folder
 				subtitleAbsPath := filepath.Join(sectionPath, name)
 				subtitleRelPath, err := filepath.Rel(coursePath, subtitleAbsPath)

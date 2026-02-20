@@ -205,14 +205,28 @@ func (s *Service) ImportCourse(ctx context.Context, coursePath string, coursesDi
 			for _, subtitlePath := range lectureMeta.SubtitlePaths {
 				language := detectSubtitleLanguage(subtitlePath)
 				format := detectSubtitleFormat(subtitlePath)
-				_, err := s.queries.CreateSubtitle(ctx, sqlc.CreateSubtitleParams{
+				subtitle, err := s.queries.CreateSubtitle(ctx, sqlc.CreateSubtitleParams{
 					LectureID: lecture.ID,
 					Language:  language,
 					Format:    format,
 					FilePath:  subtitlePath,
 				})
 				if err != nil {
-					return nil, fmt.Errorf("failed to create subtitle: %w", err)
+					// Check if it's a UNIQUE constraint error (duplicate subtitle)
+					if strings.Contains(err.Error(), "UNIQUE constraint failed") ||
+						strings.Contains(err.Error(), "constraint failed") {
+						fmt.Printf("[Import] Warning: Duplicate subtitle skipped - %s (%s, %s)\n",
+							filepath.Base(subtitlePath), language, format)
+						continue
+					}
+					// For other errors, log warning but don't fail the entire import
+					fmt.Printf("[Import] Warning: Failed to create subtitle %s: %v\n",
+						subtitlePath, err)
+					continue
+				}
+				if subtitle != nil {
+					fmt.Printf("[Import] Added subtitle: %s (%s, %s)\n",
+						filepath.Base(subtitlePath), language, format)
 				}
 			}
 		}
@@ -262,8 +276,8 @@ func (s *Service) syncExistingCourse(
 		for _, lectureMeta := range sectionMeta.Lectures {
 			// Check if lecture already exists (by file_path + course_id)
 			_, err := s.queries.GetLectureByFilePath(ctx, sqlc.GetLectureByFilePathParams{
-				CourseID:  course.ID,
-				FilePath:  lectureMeta.VideoPath,
+				CourseID: course.ID,
+				FilePath: lectureMeta.VideoPath,
 			})
 			if err == nil {
 				// Lecture already exists — skip
@@ -304,14 +318,28 @@ func (s *Service) syncExistingCourse(
 			for _, subtitlePath := range lectureMeta.SubtitlePaths {
 				language := detectSubtitleLanguage(subtitlePath)
 				format := detectSubtitleFormat(subtitlePath)
-				_, err := s.queries.CreateSubtitle(ctx, sqlc.CreateSubtitleParams{
+				subtitle, err := s.queries.CreateSubtitle(ctx, sqlc.CreateSubtitleParams{
 					LectureID: lecture.ID,
 					Language:  language,
 					Format:    format,
 					FilePath:  subtitlePath,
 				})
 				if err != nil {
-					fmt.Printf("[Sync] Warning: failed to create subtitle: %v\n", err)
+					// Check if it's a UNIQUE constraint error (duplicate subtitle)
+					if strings.Contains(err.Error(), "UNIQUE constraint failed") ||
+						strings.Contains(err.Error(), "constraint failed") {
+						fmt.Printf("[Sync] Warning: Duplicate subtitle skipped - %s (%s, %s)\n",
+							filepath.Base(subtitlePath), language, format)
+						continue
+					}
+					// For other errors, log warning but don't fail
+					fmt.Printf("[Sync] Warning: Failed to create subtitle %s: %v\n",
+						subtitlePath, err)
+					continue
+				}
+				if subtitle != nil {
+					fmt.Printf("[Sync] Added subtitle: %s (%s, %s)\n",
+						filepath.Base(subtitlePath), language, format)
 				}
 			}
 		}

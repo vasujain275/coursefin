@@ -42,13 +42,27 @@ func (a *App) startup(ctx context.Context) {
 	// Initialize database
 	dataDir, err := database.GetAppDataDir()
 	if err != nil {
-		fmt.Printf("Failed to get app data directory: %v\n", err)
+		errMsg := fmt.Sprintf("Failed to get app data directory: %v", err)
+		fmt.Println(errMsg)
+		runtime.MessageDialog(ctx, runtime.MessageDialogOptions{
+			Type:    runtime.ErrorDialog,
+			Title:   "Database Initialization Error",
+			Message: errMsg,
+		})
 		return
 	}
 
+	fmt.Printf("App data directory: %s\n", dataDir)
+
 	db, err := database.NewDB(dataDir)
 	if err != nil {
-		fmt.Printf("Failed to initialize database: %v\n", err)
+		errMsg := fmt.Sprintf("Failed to initialize database: %v\n\nData directory: %s", err, dataDir)
+		fmt.Println(errMsg)
+		runtime.MessageDialog(ctx, runtime.MessageDialogOptions{
+			Type:    runtime.ErrorDialog,
+			Title:   "Database Initialization Error",
+			Message: errMsg,
+		})
 		return
 	}
 	a.db = db

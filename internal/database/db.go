@@ -19,8 +19,8 @@ import (
 	"os"
 	"path/filepath"
 
-	_ "github.com/mattn/go-sqlite3" // SQLite driver
 	"github.com/pressly/goose/v3"
+	_ "modernc.org/sqlite" // Pure Go SQLite driver (no CGO required)
 
 	"coursefin/internal/sqlc"
 )
@@ -38,10 +38,23 @@ type DB struct {
 // NewDB creates a new database connection and runs migrations
 // dataDir: Application data directory where coursefin.db will be stored
 func NewDB(dataDir string) (*DB, error) {
+	// Log the data directory we're trying to create
+	fmt.Printf("Creating data directory: %s\n", dataDir)
+
 	// Ensure data directory exists
-	if err := os.MkdirAll(dataDir, 0755); err != nil {
-		return nil, fmt.Errorf("failed to create data directory: %w", err)
+	// Use 0777 for cross-platform compatibility (OS will apply umask)
+	if err := os.MkdirAll(dataDir, 0777); err != nil {
+		return nil, fmt.Errorf("failed to create data directory '%s': %w", dataDir, err)
 	}
+
+	// Verify directory was created successfully
+	if info, err := os.Stat(dataDir); err != nil {
+		return nil, fmt.Errorf("data directory '%s' not accessible after creation: %w", dataDir, err)
+	} else if !info.IsDir() {
+		return nil, fmt.Errorf("data directory path '%s' exists but is not a directory", dataDir)
+	}
+
+	fmt.Printf("Data directory confirmed: %s\n", dataDir)
 
 	dbPath := filepath.Join(dataDir, "coursefin.db")
 
@@ -51,7 +64,8 @@ func NewDB(dataDir string) (*DB, error) {
 	// - Synchronous: NORMAL (good balance of safety and performance)
 	// - Foreign keys: ON (enforce referential integrity)
 	// - Cache size: 10MB (speed up queries)
-	conn, err := sql.Open("sqlite3", fmt.Sprintf("%s?_busy_timeout=5000&_journal_mode=WAL&_synchronous=NORMAL&_foreign_keys=ON&cache=shared", dbPath))
+	// Note: modernc.org/sqlite uses driver name "sqlite" (not "sqlite3")
+	conn, err := sql.Open("sqlite", fmt.Sprintf("%s?_busy_timeout=5000&_journal_mode=WAL&_synchronous=NORMAL&_foreign_keys=ON&cache=shared", dbPath))
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
@@ -87,6 +101,7 @@ func (db *DB) runMigrations() error {
 	goose.SetBaseFS(embedMigrations)
 
 	// Configure goose for SQLite
+	// Note: Even though we use "sqlite" driver, goose dialect is "sqlite3"
 	if err := goose.SetDialect("sqlite3"); err != nil {
 		return fmt.Errorf("failed to set goose dialect: %w", err)
 	}
@@ -176,8 +191,10 @@ func GetAppDataDir() (string, error) {
 		if appData != "" {
 			dataDir = filepath.Join(appData, "coursefin")
 		} else {
+			// Fallback if APPDATA is not set
 			dataDir = filepath.Join(homeDir, "AppData", "Roaming", "coursefin")
 		}
+		fmt.Printf("Windows detected - APPDATA: %s, using: %s\n", appData, dataDir)
 	}
 
 	return dataDir, nil

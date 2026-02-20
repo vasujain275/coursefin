@@ -11,7 +11,8 @@
 -- name: CreateSubtitle :one
 -- Purpose: Add new subtitle track during course scan
 -- Returns: Complete subtitle record with generated ID
-INSERT INTO subtitles (
+-- Note: Uses INSERT OR IGNORE to silently skip duplicates (same lecture+language+format)
+INSERT OR IGNORE INTO subtitles (
     lecture_id,
     language,
     format,
