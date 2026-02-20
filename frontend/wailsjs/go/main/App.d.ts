@@ -17,6 +17,8 @@ export function GetCoursesDirectory():Promise<string>;
 
 export function GetDatabasePath():Promise<string>;
 
+export function GetHtmlLectureContent(arg1:number):Promise<string>;
+
 export function GetLectureForPlayer(arg1:number):Promise<player.LectureInfo>;
 
 export function GetLectureProgress(arg1:number):Promise<sqlc.Progress>;

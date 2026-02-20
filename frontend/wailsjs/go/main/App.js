@@ -26,6 +26,10 @@ export function GetDatabasePath() {
   return window['go']['main']['App']['GetDatabasePath']();
 }
 
+export function GetHtmlLectureContent(arg1) {
+  return window['go']['main']['App']['GetHtmlLectureContent'](arg1);
+}
+
 export function GetLectureForPlayer(arg1) {
   return window['go']['main']['App']['GetLectureForPlayer'](arg1);
 }
