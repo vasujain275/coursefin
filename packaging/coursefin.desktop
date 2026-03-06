@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=CourseFin
+Comment=Track your course progress
+Exec=coursefin
+Icon=coursefin
+Type=Application
+Categories=Education;Utility;
+Keywords=course;learning;progress;tracker;
+StartupWMClass=coursefin
+StartupNotify=true

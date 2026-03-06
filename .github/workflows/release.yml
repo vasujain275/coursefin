@@ -1,0 +1,332 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+env:
+  NODE_OPTIONS: "--max-old-space-size=4096"
+  APP_NAME: coursefin
+
+permissions:
+  contents: write
+
+jobs:
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Linux: build binary, then produce AppImage, .deb, and .rpm
+  # ─────────────────────────────────────────────────────────────────────────────
+  build-linux:
+    name: Build Linux
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+          cache-dependency-path: go.sum
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: latest
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -yq \
+            libgtk-3-0 \
+            libwebkit2gtk-4.0-dev \
+            build-essential \
+            pkg-config \
+            libfuse2
+
+      - name: Install Wails
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
+
+      - name: Extract version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Build Linux binary
+        run: |
+          wails build \
+            -platform linux/amd64 \
+            -clean \
+            -o "${{ env.APP_NAME }}" \
+            -ldflags "-X main.version=${{ steps.version.outputs.VERSION }}"
+
+      - name: Make binary executable
+        run: chmod +x build/bin/${{ env.APP_NAME }}
+
+      # ── AppImage ─────────────────────────────────────────────────────────────
+      - name: Install AppImage tooling
+        run: |
+          wget -q "https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage" \
+            -O /usr/local/bin/linuxdeploy
+          wget -q "https://raw.githubusercontent.com/linuxdeploy/linuxdeploy-plugin-gtk/master/linuxdeploy-plugin-gtk.sh" \
+            -O /usr/local/bin/linuxdeploy-plugin-gtk.sh
+          chmod +x /usr/local/bin/linuxdeploy /usr/local/bin/linuxdeploy-plugin-gtk.sh
+
+      - name: Build AppImage
+        env:
+          APPIMAGE_EXTRACT_AND_RUN: "1"
+          VERSION: ${{ steps.version.outputs.VERSION }}
+        run: |
+          mkdir -p AppDir/usr/bin AppDir/usr/share/applications AppDir/usr/share/icons/hicolor/256x256/apps
+
+          cp build/bin/${{ env.APP_NAME }} AppDir/usr/bin/${{ env.APP_NAME }}
+          cp packaging/coursefin.desktop AppDir/usr/share/applications/${{ env.APP_NAME }}.desktop
+          cp build/appicon.png AppDir/usr/share/icons/hicolor/256x256/apps/${{ env.APP_NAME }}.png
+
+          linuxdeploy \
+            --appdir AppDir \
+            --plugin gtk \
+            --output appimage \
+            --icon-file build/appicon.png \
+            --desktop-file packaging/coursefin.desktop
+
+          mv ${{ env.APP_NAME }}-*.AppImage \
+            ${{ env.APP_NAME }}-${{ steps.version.outputs.VERSION }}-linux-amd64.AppImage
+
+      # ── .deb and .rpm via nfpm ────────────────────────────────────────────────
+      - name: Install nfpm
+        run: |
+          NFPM_VERSION=$(curl -s https://api.github.com/repos/goreleaser/nfpm/releases/latest \
+            | grep '"tag_name"' | head -1 | sed 's/.*"v\([^"]*\)".*/\1/')
+          curl -sfL \
+            "https://github.com/goreleaser/nfpm/releases/download/v${NFPM_VERSION}/nfpm_${NFPM_VERSION}_Linux_x86_64.tar.gz" \
+            | sudo tar -xz -C /usr/local/bin nfpm
+
+      - name: Build .deb package
+        env:
+          VERSION: ${{ steps.version.outputs.VERSION }}
+        run: |
+          nfpm package \
+            --config packaging/nfpm.yaml \
+            --packager deb \
+            --target ${{ env.APP_NAME }}-${{ steps.version.outputs.VERSION }}-linux-amd64.deb
+
+      - name: Build .rpm package
+        env:
+          VERSION: ${{ steps.version.outputs.VERSION }}
+        run: |
+          nfpm package \
+            --config packaging/nfpm.yaml \
+            --packager rpm \
+            --target ${{ env.APP_NAME }}-${{ steps.version.outputs.VERSION }}-linux-amd64.rpm
+
+      - name: Upload Linux artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-packages
+          retention-days: 1
+          path: |
+            ${{ env.APP_NAME }}-*-linux-amd64.AppImage
+            ${{ env.APP_NAME }}-*-linux-amd64.deb
+            ${{ env.APP_NAME }}-*-linux-amd64.rpm
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Windows: build binary + NSIS installer
+  # ─────────────────────────────────────────────────────────────────────────────
+  build-windows:
+    name: Build Windows
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+          cache-dependency-path: go.sum
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: latest
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install NSIS
+        run: choco install nsis --yes
+
+      - name: Install Wails
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
+
+      - name: Extract version from tag
+        id: version
+        shell: bash
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Build Windows binary + NSIS installer
+        shell: bash
+        run: |
+          wails build \
+            -platform windows/amd64 \
+            -clean \
+            -nsis \
+            -webview2 download \
+            -o "${{ env.APP_NAME }}.exe" \
+            -ldflags "-X main.version=${{ steps.version.outputs.VERSION }}"
+
+      - name: Rename artifacts
+        shell: bash
+        run: |
+          mv build/bin/${{ env.APP_NAME }}.exe \
+            ${{ env.APP_NAME }}-${{ steps.version.outputs.VERSION }}-windows-amd64.exe
+          mv build/bin/${{ env.APP_NAME }}-amd64-installer.exe \
+            ${{ env.APP_NAME }}-${{ steps.version.outputs.VERSION }}-windows-amd64-installer.exe
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-packages
+          retention-days: 1
+          path: |
+            ${{ env.APP_NAME }}-*-windows-amd64.exe
+            ${{ env.APP_NAME }}-*-windows-amd64-installer.exe
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # macOS: build universal binary (arm64 + amd64) and zip it
+  # ─────────────────────────────────────────────────────────────────────────────
+  build-macos:
+    name: Build macOS
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+          cache-dependency-path: go.sum
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: latest
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install Wails
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
+
+      - name: Extract version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Build macOS universal binary
+        run: |
+          wails build \
+            -platform darwin/universal \
+            -clean \
+            -o "${{ env.APP_NAME }}" \
+            -ldflags "-X main.version=${{ steps.version.outputs.VERSION }}"
+
+      - name: Zip .app bundle
+        run: |
+          ditto -c -k --keepParent \
+            "build/bin/${{ env.APP_NAME }}.app" \
+            "${{ env.APP_NAME }}-${{ steps.version.outputs.VERSION }}-macos-universal.zip"
+
+      - name: Upload macOS artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-packages
+          retention-days: 1
+          path: ${{ env.APP_NAME }}-*-macos-universal.zip
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Create GitHub Release and upload all artifacts
+  # ─────────────────────────────────────────────────────────────────────────────
+  release:
+    name: Create GitHub Release
+    needs: [build-linux, build-windows, build-macos]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Extract version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist/
+          merge-multiple: true
+
+      - name: List release artifacts
+        run: ls -lh dist/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: "CourseFin ${{ github.ref_name }}"
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          generate_release_notes: true
+          files: dist/*
+          body: |
+            ## CourseFin ${{ github.ref_name }}
+
+            ### Downloads
+
+            | Platform | Format | File |
+            |----------|--------|------|
+            | Linux | AppImage (portable, all deps bundled) | `coursefin-${{ steps.version.outputs.VERSION }}-linux-amd64.AppImage` |
+            | Linux | Debian/Ubuntu package | `coursefin-${{ steps.version.outputs.VERSION }}-linux-amd64.deb` |
+            | Linux | RPM (Fedora/RHEL/openSUSE) | `coursefin-${{ steps.version.outputs.VERSION }}-linux-amd64.rpm` |
+            | Windows | Portable executable | `coursefin-${{ steps.version.outputs.VERSION }}-windows-amd64.exe` |
+            | Windows | NSIS installer | `coursefin-${{ steps.version.outputs.VERSION }}-windows-amd64-installer.exe` |
+            | macOS | Universal app (Apple Silicon + Intel) | `coursefin-${{ steps.version.outputs.VERSION }}-macos-universal.zip` |
+
+            ### Linux Installation
+
+            **AppImage** (recommended — works on any distro, no installation needed):
+            ```bash
+            chmod +x coursefin-${{ steps.version.outputs.VERSION }}-linux-amd64.AppImage
+            ./coursefin-${{ steps.version.outputs.VERSION }}-linux-amd64.AppImage
+            ```
+
+            **Debian/Ubuntu**:
+            ```bash
+            sudo apt install ./coursefin-${{ steps.version.outputs.VERSION }}-linux-amd64.deb
+            ```
+
+            **Fedora/RHEL**:
+            ```bash
+            sudo dnf install ./coursefin-${{ steps.version.outputs.VERSION }}-linux-amd64.rpm
+            ```

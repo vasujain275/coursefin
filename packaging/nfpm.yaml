@@ -1,0 +1,70 @@
+# nfpm configuration for coursefin
+# Used by GitHub Actions to produce .deb and .rpm packages
+# Version is injected at CI time via: nfpm package --config packaging/nfpm.yaml
+# Environment variable VERSION must be set before running nfpm.
+
+name: coursefin
+arch: amd64
+platform: linux
+
+# Version is injected from the git tag by the CI workflow via the VERSION env var.
+# nfpm supports ${VERSION} variable expansion.
+version: ${VERSION}
+
+section: utils
+priority: optional
+maintainer: Vasu Jain <vasujain275@gmail.com>
+description: |
+  CourseFin - Course progress tracker
+  A desktop application for tracking your learning progress across courses.
+vendor: Vasu Jain
+homepage: https://github.com/vasujain275/coursefin
+license: MIT
+
+# Runtime dependencies — the package manager on the user's system installs these.
+# deb and rpm blocks below override this per-format where package names differ.
+depends:
+  - libwebkit2gtk-4.0-37 | libwebkit2gtk-4.1-0
+  - libgtk-3-0
+
+# Format-specific overrides
+overrides:
+  deb:
+    depends:
+      - libwebkit2gtk-4.0-37 | libwebkit2gtk-4.1-0
+      - libgtk-3-0
+      - libglib2.0-0
+    recommends:
+      - gstreamer1.0-plugins-good
+      - gstreamer1.0-plugins-bad
+  rpm:
+    depends:
+      - webkit2gtk4.0 >= 2.36
+      - gtk3
+      - glib2
+    recommends:
+      - gstreamer1-plugins-good
+
+contents:
+  # The main binary
+  - src: ./build/bin/coursefin
+    dst: /usr/bin/coursefin
+    file_info:
+      mode: 0755
+
+  # Desktop entry for application launchers
+  - src: ./packaging/coursefin.desktop
+    dst: /usr/share/applications/coursefin.desktop
+    file_info:
+      mode: 0644
+
+  # Application icon (PNG from build/appicon.png)
+  - src: ./build/appicon.png
+    dst: /usr/share/icons/hicolor/256x256/apps/coursefin.png
+    file_info:
+      mode: 0644
+
+  # Symlink so icon resolution also works at 512x512
+  - dst: /usr/share/icons/hicolor/512x512/apps/coursefin.png
+    type: symlink
+    src: /usr/share/icons/hicolor/256x256/apps/coursefin.png
