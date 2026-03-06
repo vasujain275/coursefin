@@ -146,7 +146,7 @@ jobs:
             --icon-file build/appicon.png \
             --desktop-file packaging/coursefin.desktop
 
-          mv ${{ env.APP_NAME }}-*.AppImage \
+          mv *.AppImage \
             ${{ env.APP_NAME }}-${{ needs.version-gate.outputs.version }}-linux-amd64.AppImage
 
       # ── .deb and .rpm via nfpm ────────────────────────────────────────────────
