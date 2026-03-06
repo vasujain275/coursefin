@@ -100,8 +100,13 @@ jobs:
             pkg-config \
             libfuse2
 
-      - name: Install Wails
-        run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
+      - name: Install Wails & sqlc
+        run: |
+          go install github.com/wailsapp/wails/v2/cmd/wails@latest
+          go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest
+
+      - name: Generate sqlc code
+        run: sqlc generate
 
       - name: Build Linux binary
         run: |
@@ -216,8 +221,13 @@ jobs:
       - name: Install NSIS
         run: choco install nsis --yes
 
-      - name: Install Wails
-        run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
+      - name: Install Wails & sqlc
+        run: |
+          go install github.com/wailsapp/wails/v2/cmd/wails@latest
+          go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest
+
+      - name: Generate sqlc code
+        run: sqlc generate
 
       - name: Build Windows binary + NSIS installer
         shell: bash
@@ -279,8 +289,13 @@ jobs:
           cache: pnpm
           cache-dependency-path: frontend/pnpm-lock.yaml
 
-      - name: Install Wails
-        run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
+      - name: Install Wails & sqlc
+        run: |
+          go install github.com/wailsapp/wails/v2/cmd/wails@latest
+          go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest
+
+      - name: Generate sqlc code
+        run: sqlc generate
 
       - name: Build macOS universal binary
         run: |
