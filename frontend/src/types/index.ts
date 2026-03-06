@@ -56,6 +56,10 @@ export interface Course {
   createdAt?: string;
   updatedAt?: string;
   progress?: number;            // Computed progress percentage (0-100)
+  completedLectures?: number;   // Number of completed lectures (from ListCoursesWithProgress)
+  progressPercent?: number;     // Completion percentage (from ListCoursesWithProgress)
+  hasProgress?: boolean;        // Whether user has any progress on this course
+  lastWatchedAt?: string;       // ISO timestamp of last watch activity
   sections?: Section[];         // Only populated when fetching with GetCourseWithSections
 }
 

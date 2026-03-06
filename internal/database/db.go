@@ -92,6 +92,14 @@ func NewDB(dataDir string) (*DB, error) {
 		return nil, fmt.Errorf("failed to run migrations: %w", err)
 	}
 
+	// Quick integrity check — log warning on corruption, don't block startup
+	var result string
+	if err := conn.QueryRow("PRAGMA quick_check").Scan(&result); err != nil {
+		fmt.Printf("WARNING: database integrity check failed: %v\n", err)
+	} else if result != "ok" {
+		fmt.Printf("WARNING: database corruption detected: %s\n", result)
+	}
+
 	return db, nil
 }
 

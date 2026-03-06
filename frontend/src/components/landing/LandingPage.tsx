@@ -10,9 +10,10 @@ import { EmptyState } from '@/components/common/EmptyState';
 import { CourseGrid } from '@/components/courses/CourseGrid';
 import { Button } from '@/components/ui/button';
 import type { Course } from '@/types';
-import { GetAllCourses, ScanLibrary } from '@/wailsjs/go/main/App';
+import { useCourseStore } from '@/stores/courseStore';
+import { ScanLibrary } from '@/wailsjs/go/main/App';
 import { AlertCircle, Loader2, RefreshCw } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { GettingStartedGuide } from './GettingStartedGuide';
 
@@ -22,31 +23,23 @@ interface LandingPageProps {
 }
 
 export function LandingPage({ onCourseSelect, onSettings }: LandingPageProps) {
-  const [courses, setCourses] = useState<Course[]>([]);
-  const [filteredCourses, setFilteredCourses] = useState<Course[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { courses, isLoading, error, loadCourses, refreshCourses } = useCourseStore();
+  const [searchQuery, setSearchQuery] = useState('');
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [error, setError] = useState<string | undefined>();
+
+  const filteredCourses = useMemo(() => {
+    if (!searchQuery.trim()) return courses;
+    const lowerQuery = searchQuery.toLowerCase();
+    return courses.filter(course =>
+      course.title.toLowerCase().includes(lowerQuery) ||
+      course.instructorName?.toLowerCase().includes(lowerQuery)
+    );
+  }, [courses, searchQuery]);
 
   // Load courses on mount
   useEffect(() => {
     void loadCourses();
-  }, []);
-
-  const loadCourses = async () => {
-    try {
-      setIsLoading(true);
-      const allCourses = await GetAllCourses();
-      setCourses(allCourses || []);
-      setFilteredCourses(allCourses || []);
-      setError(undefined);
-    } catch (err) {
-      setError('Failed to load courses');
-      console.error('Failed to load courses:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  }, [loadCourses]);
 
   // Scan the courses directory and import any new course folders
   const handleRefreshLibrary = async () => {
@@ -55,7 +48,7 @@ export function LandingPage({ onCourseSelect, onSettings }: LandingPageProps) {
       const result = await ScanLibrary();
 
       // Reload the course grid
-      await loadCourses();
+      await refreshCourses();
 
       // Show a summary toast
       if (result.coursesAdded > 0) {
@@ -86,17 +79,7 @@ export function LandingPage({ onCourseSelect, onSettings }: LandingPageProps) {
   };
 
   const handleSearch = (query: string) => {
-    if (!query.trim()) {
-      setFilteredCourses(courses);
-      return;
-    }
-
-    const lowerQuery = query.toLowerCase();
-    const filtered = courses.filter(course =>
-      course.title.toLowerCase().includes(lowerQuery) ||
-      course.instructorName?.toLowerCase().includes(lowerQuery)
-    );
-    setFilteredCourses(filtered);
+    setSearchQuery(query);
   };
 
   const handleCourseClick = (course: Course) => {
@@ -175,7 +158,7 @@ export function LandingPage({ onCourseSelect, onSettings }: LandingPageProps) {
             onCourseClick={handleCourseClick}
             emptyMessage="No courses match your search"
             emptyActionLabel="Clear Search"
-            emptyAction={() => setFilteredCourses(courses)}
+            emptyAction={() => setSearchQuery('')}
           />
         </div>
       )}

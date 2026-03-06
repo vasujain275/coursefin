@@ -131,6 +131,10 @@ func (a *App) shutdown(ctx context.Context) {
 	}
 
 	if a.db != nil {
+		fmt.Println("Checkpointing WAL before close...")
+		if _, err := a.db.Conn().Exec("PRAGMA wal_checkpoint(TRUNCATE)"); err != nil {
+			fmt.Printf("WAL checkpoint failed: %v\n", err)
+		}
 		fmt.Println("Closing database connection...")
 		a.db.Close()
 	}
@@ -166,7 +170,7 @@ func (a *App) GetAllCourses() ([]interface{}, error) {
 		return nil, fmt.Errorf("database not initialized")
 	}
 
-	courses, err := a.db.Queries().ListCourses(a.ctx, sqlc.ListCoursesParams{
+	courses, err := a.db.Queries().ListCoursesWithProgress(a.ctx, sqlc.ListCoursesWithProgressParams{
 		Limit:  100, // Default to 100 courses
 		Offset: 0,
 	})

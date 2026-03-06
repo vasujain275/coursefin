@@ -507,7 +507,7 @@ type CourseWithSections struct {
 // SectionWithLectures represents a section with all its lectures
 type SectionWithLectures struct {
 	*sqlc.Section
-	Lectures []*sqlc.Lecture `json:"lectures"`
+	Lectures []*sqlc.ListLecturesWithProgressBySectionRow `json:"lectures"`
 }
 
 // GetCourseWithSections retrieves a course with all sections and lectures
@@ -531,7 +531,7 @@ func (s *Service) GetCourseWithSections(ctx context.Context, id int64) (*CourseW
 	sectionsWithLectures := make([]*SectionWithLectures, len(sections))
 	for i, section := range sections {
 		// Get lectures for this section
-		lectures, err := s.queries.ListLecturesBySection(ctx, section.ID)
+		lectures, err := s.queries.ListLecturesWithProgressBySection(ctx, section.ID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get lectures for section %d: %w", section.ID, err)
 		}

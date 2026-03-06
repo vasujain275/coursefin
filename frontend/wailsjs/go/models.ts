@@ -8,7 +8,7 @@ export namespace course {
 	    description?: string;
 	    // Go type: time
 	    created_at?: any;
-	    lectures: sqlc.Lecture[];
+	    lectures: sqlc.ListLecturesWithProgressBySectionRow[];
 	
 	    static createFrom(source: any = {}) {
 	        return new SectionWithLectures(source);
@@ -22,7 +22,7 @@ export namespace course {
 	        this.section_number = source["section_number"];
 	        this.description = source["description"];
 	        this.created_at = this.convertValues(source["created_at"], null);
-	        this.lectures = this.convertValues(source["lectures"], sqlc.Lecture);
+	        this.lectures = this.convertValues(source["lectures"], sqlc.ListLecturesWithProgressBySectionRow);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -441,7 +441,7 @@ export namespace player {
 
 export namespace sqlc {
 	
-	export class Lecture {
+	export class ListLecturesWithProgressBySectionRow {
 	    id: number;
 	    section_id: number;
 	    course_id: number;
@@ -460,9 +460,12 @@ export namespace sqlc {
 	    has_subtitles?: boolean;
 	    // Go type: time
 	    created_at?: any;
+	    is_completed: boolean;
+	    last_position?: number;
+	    watch_count?: number;
 	
 	    static createFrom(source: any = {}) {
-	        return new Lecture(source);
+	        return new ListLecturesWithProgressBySectionRow(source);
 	    }
 	
 	    constructor(source: any = {}) {
@@ -484,6 +487,9 @@ export namespace sqlc {
 	        this.resolution = source["resolution"];
 	        this.has_subtitles = source["has_subtitles"];
 	        this.created_at = this.convertValues(source["created_at"], null);
+	        this.is_completed = source["is_completed"];
+	        this.last_position = source["last_position"];
+	        this.watch_count = source["watch_count"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

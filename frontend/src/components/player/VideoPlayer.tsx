@@ -167,36 +167,40 @@ export function VideoPlayer({
     };
 
     // Plyr may not have rendered into the DOM yet on the very first tick, so
-    // we defer attachment by one frame to ensure the <video> element exists.
+    // we poll for the <video> element to exist.
     let video: HTMLVideoElement | null = null;
-    const attachListeners = () => {
-      video = getVideo();
-      if (!video) {
-        // Retry once after a short delay — Plyr initialises asynchronously
-        const id = window.setTimeout(() => {
-          video = getVideo();
-          if (video) {
-            video.addEventListener('loadeddata', handleLoadedData);
-            video.addEventListener('canplay', handleCanPlay);
-            video.addEventListener('error', handleError);
-            video.addEventListener('play', handlePlay);
-            video.addEventListener('pause', handlePause);
-            video.addEventListener('seeked', handleSeeked);
-          }
-        }, 100);
-        return () => window.clearTimeout(id);
-      }
 
-      video.addEventListener('loadeddata', handleLoadedData);
-      video.addEventListener('canplay', handleCanPlay);
-      video.addEventListener('error', handleError);
-      video.addEventListener('play', handlePlay);
-      video.addEventListener('pause', handlePause);
-      video.addEventListener('seeked', handleSeeked);
-      return null;
+    const addListeners = (el: HTMLVideoElement) => {
+      el.addEventListener('loadeddata', handleLoadedData);
+      el.addEventListener('canplay', handleCanPlay);
+      el.addEventListener('error', handleError);
+      el.addEventListener('play', handlePlay);
+      el.addEventListener('pause', handlePause);
+      el.addEventListener('seeked', handleSeeked);
     };
 
-    const cleanupTimeout = attachListeners();
+    // Plyr initialises asynchronously — poll until the <video> element exists.
+    // 50ms interval × 40 retries = 2s max wait, covering slow initialisations.
+    let pollAttempts = 0;
+    const pollId = window.setInterval(() => {
+      video = getVideo();
+      if (video) {
+        window.clearInterval(pollId);
+        addListeners(video);
+        return;
+      }
+      if (++pollAttempts >= 40) {
+        window.clearInterval(pollId);
+        console.error('[VideoPlayer] Failed to find <video> element after 2s');
+      }
+    }, 50);
+
+    // Also try immediately (no need to wait 50ms if already available)
+    video = getVideo();
+    if (video) {
+      window.clearInterval(pollId);
+      addListeners(video);
+    }
 
     // Start watch session
     void StartLectureWatch(lectureInfo.LectureID).catch((err) =>
@@ -204,9 +208,9 @@ export function VideoPlayer({
     );
 
     return () => {
-      cleanupTimeout?.();
+      window.clearInterval(pollId);
 
-      // Save final position before unmounting
+      void saveProgress();
       void saveProgress();
 
       if (progressIntervalRef.current) {
