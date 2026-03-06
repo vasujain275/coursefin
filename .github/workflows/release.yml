@@ -219,7 +219,9 @@ jobs:
           cache-dependency-path: frontend/pnpm-lock.yaml
 
       - name: Install NSIS
-        run: choco install nsis --yes
+        run: |
+          choco install nsis --yes
+          echo "C:\Program Files (x86)\NSIS" >> $env:GITHUB_PATH
 
       - name: Install Wails & sqlc
         run: |
@@ -232,6 +234,7 @@ jobs:
       - name: Build Windows binary + NSIS installer
         shell: bash
         run: |
+          export PATH="/c/Program Files (x86)/NSIS:$PATH"
           wails build \
             -platform windows/amd64 \
             -clean \
@@ -245,8 +248,10 @@ jobs:
         run: |
           mv build/bin/${{ env.APP_NAME }}.exe \
             ${{ env.APP_NAME }}-${{ needs.version-gate.outputs.version }}-windows-amd64.exe
-          mv build/bin/${{ env.APP_NAME }}-amd64-installer.exe \
-            ${{ env.APP_NAME }}-${{ needs.version-gate.outputs.version }}-windows-amd64-installer.exe
+          if [ -f "build/bin/${{ env.APP_NAME }}-amd64-installer.exe" ]; then
+            mv build/bin/${{ env.APP_NAME }}-amd64-installer.exe \
+              ${{ env.APP_NAME }}-${{ needs.version-gate.outputs.version }}-windows-amd64-installer.exe
+          fi
 
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4
