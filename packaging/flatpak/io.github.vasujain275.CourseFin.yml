@@ -41,9 +41,11 @@ modules:
       env:
         npm_config_nodedir: /usr/lib/sdk/node20
     build-commands:
-      - export npm_config_prefix=/run/build/coursefin-frontend/npm-global
-      - export PATH="$npm_config_prefix/bin:$PATH"
-      - npm install -g pnpm@latest
+      - mkdir -p /run/build/coursefin-frontend/bin
+      - export COREPACK_HOME=/run/build/coursefin-frontend/.corepack
+      - corepack enable --install-directory /run/build/coursefin-frontend/bin
+      - export PATH="/run/build/coursefin-frontend/bin:$PATH"
+      - corepack prepare pnpm@latest --activate
       # Install and build frontend dependencies
       - cd frontend && pnpm install --frozen-lockfile
       - cd frontend && pnpm run build
