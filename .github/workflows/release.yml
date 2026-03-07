@@ -59,7 +59,7 @@ jobs:
           git push origin "$TAG"
 
   # ─────────────────────────────────────────────────────────────────────────────
-  # Linux: build binary, then produce AppImage, .deb, and .rpm
+  # Linux: build binary, produce .deb, and .rpm
   # ─────────────────────────────────────────────────────────────────────────────
   build-linux:
     name: Build Linux
@@ -97,8 +97,7 @@ jobs:
             libgtk-3-0 \
             libwebkit2gtk-4.0-dev \
             build-essential \
-            pkg-config \
-            libfuse2
+            pkg-config
 
       - name: Install Wails & sqlc
         run: |
@@ -119,35 +118,10 @@ jobs:
       - name: Make binary executable
         run: chmod +x build/bin/${{ env.APP_NAME }}
 
-      # ── AppImage ─────────────────────────────────────────────────────────────
-      - name: Install AppImage tooling
+      - name: Rename standalone binary
         run: |
-          wget -q "https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage" \
-            -O /usr/local/bin/linuxdeploy
-          wget -q "https://raw.githubusercontent.com/linuxdeploy/linuxdeploy-plugin-gtk/master/linuxdeploy-plugin-gtk.sh" \
-            -O /usr/local/bin/linuxdeploy-plugin-gtk.sh
-          chmod +x /usr/local/bin/linuxdeploy /usr/local/bin/linuxdeploy-plugin-gtk.sh
-
-      - name: Build AppImage
-        env:
-          APPIMAGE_EXTRACT_AND_RUN: "1"
-          VERSION: ${{ needs.version-gate.outputs.version }}
-        run: |
-          mkdir -p AppDir/usr/bin AppDir/usr/share/applications AppDir/usr/share/icons/hicolor/256x256/apps
-
-          cp build/bin/${{ env.APP_NAME }} AppDir/usr/bin/${{ env.APP_NAME }}
-          cp packaging/coursefin.desktop AppDir/usr/share/applications/${{ env.APP_NAME }}.desktop
-          cp build/appicon.png AppDir/usr/share/icons/hicolor/256x256/apps/${{ env.APP_NAME }}.png
-
-          linuxdeploy \
-            --appdir AppDir \
-            --plugin gtk \
-            --output appimage \
-            --icon-file build/appicon.png \
-            --desktop-file packaging/coursefin.desktop
-
-          mv *.AppImage \
-            ${{ env.APP_NAME }}-${{ needs.version-gate.outputs.version }}-linux-amd64.AppImage
+          cp build/bin/${{ env.APP_NAME }} \
+            ${{ env.APP_NAME }}-${{ needs.version-gate.outputs.version }}-linux-amd64
 
       # ── .deb and .rpm via nfpm ────────────────────────────────────────────────
       - name: Install nfpm
@@ -182,7 +156,7 @@ jobs:
           name: linux-packages
           retention-days: 1
           path: |
-            ${{ env.APP_NAME }}-*-linux-amd64.AppImage
+            ${{ env.APP_NAME }}-*-linux-amd64
             ${{ env.APP_NAME }}-*-linux-amd64.deb
             ${{ env.APP_NAME }}-*-linux-amd64.rpm
 
@@ -324,11 +298,42 @@ jobs:
           path: ${{ env.APP_NAME }}-*-macos-universal.zip
 
   # ─────────────────────────────────────────────────────────────────────────────
+  # Flatpak: build .flatpak bundle
+  # ─────────────────────────────────────────────────────────────────────────────
+  build-flatpak:
+    name: Build Flatpak
+    needs: [version-gate]
+    if: needs.version-gate.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-48
+      options: --privileged
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build Flatpak bundle
+        uses: flatpak/flatpak-github-actions/flatpak-builder@v6
+        with:
+          manifest-path: packaging/flatpak/io.github.vasujain275.CourseFin.yml
+          bundle: coursefin-${{ needs.version-gate.outputs.version }}.flatpak
+          repository-name: repo
+          cache-key: flatpak-builder-${{ github.sha }}
+
+      - name: Upload Flatpak artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: flatpak-package
+          retention-days: 1
+          path: coursefin-*.flatpak
+
+  # ─────────────────────────────────────────────────────────────────────────────
   # Create GitHub Release and upload all artifacts
   # ─────────────────────────────────────────────────────────────────────────────
   release:
     name: Create GitHub Release
-    needs: [version-gate, build-linux, build-windows, build-macos]
+    needs: [version-gate, build-linux, build-windows, build-macos, build-flatpak]
     runs-on: ubuntu-latest
 
     steps:
@@ -360,7 +365,8 @@ jobs:
 
             | Platform | Format | File |
             |----------|--------|------|
-            | Linux | AppImage (portable, all deps bundled) | `coursefin-${{ needs.version-gate.outputs.version }}-linux-amd64.AppImage` |
+            | Linux | Flatpak bundle | `coursefin-${{ needs.version-gate.outputs.version }}.flatpak` |
+            | Linux | Standalone binary | `coursefin-${{ needs.version-gate.outputs.version }}-linux-amd64` |
             | Linux | Debian/Ubuntu package | `coursefin-${{ needs.version-gate.outputs.version }}-linux-amd64.deb` |
             | Linux | RPM (Fedora/RHEL/openSUSE) | `coursefin-${{ needs.version-gate.outputs.version }}-linux-amd64.rpm` |
             | Windows | Portable executable | `coursefin-${{ needs.version-gate.outputs.version }}-windows-amd64.exe` |
@@ -368,12 +374,6 @@ jobs:
             | macOS | Universal app (Apple Silicon + Intel) | `coursefin-${{ needs.version-gate.outputs.version }}-macos-universal.zip` |
 
             ### Linux Installation
-
-            **AppImage** (recommended — works on any distro, no installation needed):
-            ```bash
-            chmod +x coursefin-${{ needs.version-gate.outputs.version }}-linux-amd64.AppImage
-            ./coursefin-${{ needs.version-gate.outputs.version }}-linux-amd64.AppImage
-            ```
 
             **Debian/Ubuntu**:
             ```bash
@@ -384,3 +384,51 @@ jobs:
             ```bash
             sudo dnf install ./coursefin-${{ needs.version-gate.outputs.version }}-linux-amd64.rpm
             ```
+
+            **Flatpak** (all Linux distros):
+            ```bash
+            flatpak install --user coursefin-${{ needs.version-gate.outputs.version }}.flatpak
+            flatpak run io.github.vasujain275.CourseFin
+            ```
+
+            **Arch Linux (AUR)**:
+            ```bash
+            yay -S coursefin      # Build from source
+            yay -S coursefin-bin  # Pre-built binary
+            ```
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # AUR: push updated PKGBUILDs when new release is created
+  # ─────────────────────────────────────────────────────────────────────────────
+  update-aur:
+    name: Update AUR Packages
+    needs: [release, version-gate]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Update AUR source package (coursefin)
+        uses: KSXGitHub/github-actions-deploy-aur@v4.1.1
+        with:
+          pkgname: coursefin
+          pkgbuild: packaging/aur/coursefin/PKGBUILD
+          commit_username: ${{ secrets.AUR_USERNAME }}
+          commit_email: ${{ secrets.AUR_EMAIL }}
+          ssh_private_key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+          commit_message: "Update to ${{ needs.version-gate.outputs.version }}"
+          update_pkgver: true
+          allow_empty_commits: false
+
+      - name: Update AUR binary package (coursefin-bin)
+        uses: KSXGitHub/github-actions-deploy-aur@v4.1.1
+        with:
+          pkgname: coursefin-bin
+          pkgbuild: packaging/aur/coursefin-bin/PKGBUILD
+          commit_username: ${{ secrets.AUR_USERNAME }}
+          commit_email: ${{ secrets.AUR_EMAIL }}
+          ssh_private_key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+          commit_message: "Update to ${{ needs.version-gate.outputs.version }}"
+          update_pkgver: true
+          allow_empty_commits: false
