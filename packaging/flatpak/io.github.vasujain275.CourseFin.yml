@@ -41,9 +41,9 @@ modules:
       env:
         npm_config_nodedir: /usr/lib/sdk/node20
     build-commands:
-      # Enable corepack for pnpm
-      - corepack enable
-      - corepack prepare pnpm@latest --activate
+      - export npm_config_prefix=/run/build/coursefin-frontend/npm-global
+      - export PATH="$npm_config_prefix/bin:$PATH"
+      - npm install -g pnpm@latest
       # Install and build frontend dependencies
       - cd frontend && pnpm install --frozen-lockfile
       - cd frontend && pnpm run build
