@@ -4,6 +4,7 @@ Comment=Track your course progress
 Exec=coursefin
 Icon=coursefin
 Type=Application
+Terminal=false
 Categories=Education;Utility;
 Keywords=course;learning;progress;tracker;
 StartupWMClass=coursefin
