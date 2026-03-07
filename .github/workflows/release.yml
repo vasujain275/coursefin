@@ -323,7 +323,6 @@ jobs:
         with:
           manifest-path: packaging/flatpak/io.github.vasujain275.CourseFin.yml
           bundle: coursefin-${{ needs.version-gate.outputs.version }}.flatpak
-          repository-name: repo
           cache-key: flatpak-builder-${{ github.sha }}
 
       - name: Upload Flatpak artifact
