@@ -121,3 +121,7 @@ temp/
 *.tmp
 *.bak
 *.backupcoursefin
+
+
+# Opencode
+.sisyphus/
