@@ -48,9 +48,8 @@ modules:
       - cd frontend && pnpm install --frozen-lockfile
       - cd frontend && pnpm run build
     sources:
-      - type: git
-        url: https://github.com/vasujain275/coursefin.git
-        tag: v@VERSION@
+      - type: dir
+        path: ../../
 
   # Main app build: Go + Wails + sqlc
   - name: coursefin
@@ -83,6 +82,5 @@ modules:
       # Install AppStream metainfo
       - install -Dm644 packaging/flatpak/io.github.vasujain275.CourseFin.metainfo.xml /app/share/metainfo/io.github.vasujain275.CourseFin.metainfo.xml
     sources:
-      - type: git
-        url: https://github.com/vasujain275/coursefin.git
-        tag: v@VERSION@
+      - type: dir
+        path: ../../
