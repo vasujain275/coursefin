@@ -1,0 +1,88 @@
+app-id: io.github.vasujain275.CourseFin
+runtime: org.gnome.Platform
+runtime-version: '48'
+sdk: org.gnome.Sdk
+command: coursefin
+
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.golang
+  - org.freedesktop.Sdk.Extension.node20
+
+add-extensions:
+  org.freedesktop.Platform.ffmpeg-full:
+    directory: lib/ffmpeg
+    add-ld-path: .
+    version: '48'
+    no-autodownload: false
+    autodelete: false
+
+finish-args:
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --share=ipc
+  - --device=dri
+  - --socket=pulseaudio
+  - --filesystem=home:ro
+  - --filesystem=xdg-data/coursefin:create
+  # --share=network  # Uncomment if network beyond localhost loopback is needed
+
+modules:
+  # Create the ffmpeg extension mount point
+  - name: ffmpeg-dir
+    buildsystem: simple
+    build-commands:
+      - mkdir -p /app/lib/ffmpeg
+
+  # Frontend build: compile React/TypeScript/Vite assets embedded via go:embed
+  - name: coursefin-frontend
+    buildsystem: simple
+    build-options:
+      append-path: /usr/lib/sdk/node20/bin
+      env:
+        npm_config_nodedir: /usr/lib/sdk/node20
+    build-commands:
+      # Enable corepack for pnpm
+      - corepack enable
+      - corepack prepare pnpm@latest --activate
+      # Install and build frontend dependencies
+      - cd frontend && pnpm install --frozen-lockfile
+      - cd frontend && pnpm run build
+    sources:
+      - type: git
+        url: https://github.com/vasujain275/coursefin.git
+        tag: v0.4.4
+
+  # Main app build: Go + Wails + sqlc
+  - name: coursefin
+    buildsystem: simple
+    build-options:
+      append-path: /usr/lib/sdk/golang/bin
+      env:
+        GOROOT: /usr/lib/sdk/golang
+        GOPATH: /run/build/coursefin/gopath
+        GOBIN: /run/build/coursefin/gopath/bin
+        GOFLAGS: -mod=vendor
+        CGO_ENABLED: '1'
+    build-commands:
+      # Install Wails CLI
+      - GOFLAGS= go install github.com/wailsapp/wails/v2/cmd/wails@latest
+      # Install sqlc code generator
+      - GOFLAGS= go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest
+      # Vendor dependencies for offline Flatpak build
+      - go mod vendor
+      # MANDATORY: generate Go code from SQL queries before wails build
+      - $GOBIN/sqlc generate
+      # Build the Wails app (embeds pre-built frontend assets)
+      - $GOBIN/wails build -platform linux/amd64 -clean -o coursefin -ldflags "-X main.version=0.4.4" -tags webkit2_41
+      # Install binary
+      - install -Dm755 build/bin/coursefin /app/bin/coursefin
+      # Install desktop file (renamed to match app-id per Flatpak spec)
+      - install -Dm644 packaging/coursefin.desktop /app/share/applications/io.github.vasujain275.CourseFin.desktop
+      # Install icon
+      - install -Dm644 build/appicon.png /app/share/icons/hicolor/512x512/apps/io.github.vasujain275.CourseFin.png
+      # Install AppStream metainfo
+      - install -Dm644 packaging/flatpak/io.github.vasujain275.CourseFin.metainfo.xml /app/share/metainfo/io.github.vasujain275.CourseFin.metainfo.xml
+    sources:
+      - type: git
+        url: https://github.com/vasujain275/coursefin.git
+        tag: v0.4.4
