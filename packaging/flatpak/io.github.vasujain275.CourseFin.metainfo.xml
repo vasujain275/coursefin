@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.vasujain275.CourseFin</id>
+  <name>CourseFin</name>
+  <summary>Desktop app for managing and watching offline course content</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <description>
+    <p>CourseFin is a desktop application for managing and watching your offline course library. Organize Udemy courses and other downloaded content, track your progress, and watch videos with built-in playback support.</p>
+    <p>Features include course library management, video playback with H.264 support, progress tracking, and a clean modern interface built with WebKitGTK.</p>
+  </description>
+  <launchable type="desktop-id">io.github.vasujain275.CourseFin.desktop</launchable>
+  <url type="homepage">https://github.com/vasujain275/coursefin</url>
+  <url type="bugtracker">https://github.com/vasujain275/coursefin/issues</url>
+  <releases>
+    <release version="0.4.4" date="2026-03-07"/>
+  </releases>
+  <content_rating type="oars-1.1"/>
+  <categories>
+    <category>Education</category>
+    <category>Utility</category>
+  </categories>
+</component>
