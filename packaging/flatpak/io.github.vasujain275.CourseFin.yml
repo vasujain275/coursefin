@@ -50,7 +50,7 @@ modules:
     sources:
       - type: git
         url: https://github.com/vasujain275/coursefin.git
-        tag: v0.4.4
+        tag: v@VERSION@
 
   # Main app build: Go + Wails + sqlc
   - name: coursefin
@@ -73,7 +73,7 @@ modules:
       # MANDATORY: generate Go code from SQL queries before wails build
       - $GOBIN/sqlc generate
       # Build the Wails app (embeds pre-built frontend assets)
-      - $GOBIN/wails build -platform linux/amd64 -clean -o coursefin -ldflags "-X main.version=0.4.4" -tags webkit2_41
+      - $GOBIN/wails build -platform linux/amd64 -clean -o coursefin -ldflags "-X main.version=@VERSION@" -tags webkit2_41
       # Install binary
       - install -Dm755 build/bin/coursefin /app/bin/coursefin
       # Install desktop file (renamed to match app-id per Flatpak spec)
@@ -85,4 +85,4 @@ modules:
     sources:
       - type: git
         url: https://github.com/vasujain275/coursefin.git
-        tag: v0.4.4
+        tag: v@VERSION@
