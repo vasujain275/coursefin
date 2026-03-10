@@ -9,11 +9,12 @@ import { AppLayout } from '@/components/common/AppLayout';
 import { EmptyState } from '@/components/common/EmptyState';
 import { CourseGrid } from '@/components/courses/CourseGrid';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import type { Course } from '@/types';
 import { useCourseStore } from '@/stores/courseStore';
 import { useShallow } from 'zustand/react/shallow';
 import { ScanLibrary } from '@/wailsjs/go/main/App';
-import { AlertCircle, Loader2, RefreshCw } from 'lucide-react';
+import { AlertCircle, RefreshCw } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { GettingStartedGuide } from './GettingStartedGuide';
@@ -102,11 +103,16 @@ export function LandingPage({ onCourseSelect, onSettings }: LandingPageProps) {
     >
       {/* Loading State */}
       {isLoading && (
-        <div className="flex items-center justify-center py-20">
-          <div className="flex flex-col items-center gap-4">
-            <Loader2 className="h-8 w-8 text-primary animate-spin" />
-            <p className="text-sm text-muted-foreground">Loading your library...</p>
+        <div className="space-y-6 animate-fade-in">
+          <div className="flex items-center justify-between">
+            <div>
+              <Skeleton className="h-9 w-48" />
+              <Skeleton className="h-5 w-32 mt-2" />
+            </div>
+            <Skeleton className="h-9 w-36" />
           </div>
+
+          <CourseGrid courses={[]} isLoading={true} />
         </div>
       )}
 

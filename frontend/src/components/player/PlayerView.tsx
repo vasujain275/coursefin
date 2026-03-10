@@ -7,13 +7,14 @@
 
 import { ThemeToggle } from '@/components/common/ThemeToggle';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import type { Lecture } from '@/types';
 import { isVideoLecture } from '@/lib/utils';
 import { GetLectureForPlayer } from '@/wailsjs/go/main/App';
 import { EventsOff, EventsOn } from '@/wailsjs/runtime/runtime';
 import { usePlayerStore } from '@/stores/playerStore';
 import { useShallow } from 'zustand/react/shallow';
-import { AlertCircle, ArrowLeft, FileText, Loader2, PanelRightClose, PanelRightOpen } from 'lucide-react';
+import { AlertCircle, ArrowLeft, FileText, PanelRightClose, PanelRightOpen } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { HtmlLectureViewer } from './HtmlLectureViewer';
 import { LectureList } from './LectureList';
@@ -66,10 +67,17 @@ function VideoPlayerWrapper({
 
   if (loading) {
     return (
-      <div className="flex h-full items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <Loader2 className="h-8 w-8 text-primary animate-spin" />
-          <p className="text-sm text-muted-foreground">Loading video...</p>
+      <div className="flex h-full flex-col bg-background">
+        <div className="flex-1 p-6 flex flex-col items-center justify-center">
+          <Skeleton className="w-full max-w-5xl aspect-video rounded-xl" />
+        </div>
+        <div className="flex items-center justify-between border-t border-border/50 bg-card/80 p-4">
+          <Skeleton className="h-10 w-28" />
+          <div className="flex-1 flex flex-col items-center gap-2">
+            <Skeleton className="h-5 w-1/3" />
+            <Skeleton className="h-3 w-24" />
+          </div>
+          <Skeleton className="h-10 w-28" />
         </div>
       </div>
     );
@@ -147,10 +155,45 @@ export function PlayerView({ courseId, initialLectureId, onBack }: PlayerViewPro
 
   if (isLoading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="h-8 w-8 text-primary animate-spin" />
-          <p className="text-sm text-muted-foreground">Loading course...</p>
+      <div className="flex h-screen bg-background">
+        <div className="flex-1 flex flex-col min-w-0">
+          <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/50 bg-card/95">
+            <Skeleton className="h-8 w-20" />
+            <div className="flex-1 px-4 flex justify-center">
+              <Skeleton className="h-5 w-1/3" />
+            </div>
+            <div className="flex items-center gap-2">
+              <Skeleton className="h-8 w-8" />
+              <Skeleton className="h-8 w-24" />
+            </div>
+          </div>
+          
+          <div className="flex-1 flex flex-col bg-background">
+            <div className="flex-1 p-6 flex flex-col items-center justify-center">
+              <Skeleton className="w-full max-w-5xl aspect-video rounded-xl" />
+            </div>
+            <div className="flex items-center justify-between border-t border-border/50 bg-card/80 p-4">
+              <Skeleton className="h-10 w-28" />
+              <div className="flex-1 flex flex-col items-center gap-2">
+                <Skeleton className="h-5 w-1/3" />
+                <Skeleton className="h-3 w-24" />
+              </div>
+              <Skeleton className="h-10 w-28" />
+            </div>
+          </div>
+        </div>
+
+        <div className="w-96 flex-shrink-0 border-l border-border/50 p-4 space-y-4 bg-card/50">
+          <Skeleton className="h-6 w-1/2 mb-4" />
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} className="flex gap-3">
+              <Skeleton className="h-10 w-10 rounded-md" />
+              <div className="space-y-2 flex-1">
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-3 w-2/3" />
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     );
