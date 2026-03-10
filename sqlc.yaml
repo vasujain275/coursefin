@@ -53,3 +53,7 @@ sql:
           # SQLite INTEGER (duration/position) → Go int64 for large values
           - db_type: "integer"
             go_type: "int64"
+          
+          # SQLite REAL (computed percentages, floats) → Go float64
+          - db_type: "real"
+            go_type: "float64"

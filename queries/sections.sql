@@ -83,8 +83,8 @@ SELECT
     s.*,
     COUNT(l.id) as total_lectures,
     COUNT(CASE WHEN p.completed = 1 THEN 1 END) as completed_lectures,
-    CAST(COUNT(CASE WHEN p.completed = 1 THEN 1 END) AS REAL) /
-        NULLIF(COUNT(l.id), 0) * 100 as completion_percentage
+    CAST(CAST(COUNT(CASE WHEN p.completed = 1 THEN 1 END) AS REAL) /
+        NULLIF(COUNT(l.id), 0) * 100 AS REAL) as completion_percentage
 FROM sections s
 LEFT JOIN lectures l ON s.id = l.section_id
 LEFT JOIN progress p ON l.id = p.lecture_id
@@ -102,8 +102,8 @@ SELECT
     s.*,
     COUNT(l.id) as total_lectures,
     COUNT(CASE WHEN p.completed = 1 THEN 1 END) as completed_lectures,
-    CAST(COUNT(CASE WHEN p.completed = 1 THEN 1 END) AS REAL) /
-        NULLIF(COUNT(l.id), 0) * 100 as completion_percentage
+    CAST(CAST(COUNT(CASE WHEN p.completed = 1 THEN 1 END) AS REAL) /
+        NULLIF(COUNT(l.id), 0) * 100 AS REAL) as completion_percentage
 FROM sections s
 LEFT JOIN lectures l ON s.id = l.section_id
 LEFT JOIN progress p ON l.id = p.lecture_id
