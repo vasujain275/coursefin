@@ -302,7 +302,7 @@ jobs:
   # ─────────────────────────────────────────────────────────────────────────────
   build-flatpak:
     name: Build Flatpak
-    needs: [version-gate]
+    needs: [version-gate, build-linux]
     if: needs.version-gate.outputs.changed == 'true'
     runs-on: ubuntu-latest
     container:
@@ -313,10 +313,23 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Inject version into Flatpak manifest
+      - name: Download pre-built Linux binary
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-packages
+          path: dist/
+
+      - name: Place binary in repo root for Flatpak manifest
+        run: |
+          cp dist/${{ env.APP_NAME }}-${{ needs.version-gate.outputs.version }}-linux-amd64 coursefin
+          chmod +x coursefin
+
+      - name: Inject version into Flatpak files
         run: |
           VERSION="${{ needs.version-gate.outputs.version }}"
-          sed -i "s/@VERSION@/${VERSION}/g" packaging/flatpak/io.github.vasujain275.CourseFin.yml
+          DATE="$(date -u +%Y-%m-%d)"
+          sed -i "s/@VERSION@/${VERSION}/g" packaging/flatpak/io.github.vasujain275.CourseFin.metainfo.xml
+          sed -i "s/@DATE@/${DATE}/g" packaging/flatpak/io.github.vasujain275.CourseFin.metainfo.xml
 
       - name: Build Flatpak bundle
         uses: flatpak/flatpak-github-actions/flatpak-builder@v6
@@ -413,6 +426,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Inject version into PKGBUILDs
+        run: |
+          VERSION="${{ needs.version-gate.outputs.version }}"
+          sed -i "s/^pkgver=.*/pkgver=${VERSION}/" packaging/aur/coursefin/PKGBUILD
+          sed -i "s/^pkgver=.*/pkgver=${VERSION}/" packaging/aur/coursefin-bin/PKGBUILD
+
       - name: Update AUR source package (coursefin)
         uses: KSXGitHub/github-actions-deploy-aur@v4.1.1
         with:
@@ -422,7 +441,6 @@ jobs:
           commit_email: ${{ secrets.AUR_EMAIL }}
           ssh_private_key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
           commit_message: "Update to ${{ needs.version-gate.outputs.version }}"
-          update_pkgver: true
           allow_empty_commits: false
 
       - name: Update AUR binary package (coursefin-bin)
@@ -434,5 +452,4 @@ jobs:
           commit_email: ${{ secrets.AUR_EMAIL }}
           ssh_private_key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
           commit_message: "Update to ${{ needs.version-gate.outputs.version }}"
-          update_pkgver: true
           allow_empty_commits: false
