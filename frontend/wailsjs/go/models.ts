@@ -441,6 +441,64 @@ export namespace player {
 
 export namespace sqlc {
 	
+	export class ListCoursesWithProgressRow {
+	    id: number;
+	    title: string;
+	    slug: string;
+	    description?: string;
+	    instructor_name?: string;
+	    thumbnail_url?: string;
+	    thumbnail_path?: string;
+	    course_path: string;
+	    total_duration?: number;
+	    total_lectures?: number;
+	    // Go type: time
+	    created_at?: any;
+	    // Go type: time
+	    updated_at?: any;
+	    completed_lectures: number;
+	    completion_percentage: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new ListCoursesWithProgressRow(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.title = source["title"];
+	        this.slug = source["slug"];
+	        this.description = source["description"];
+	        this.instructor_name = source["instructor_name"];
+	        this.thumbnail_url = source["thumbnail_url"];
+	        this.thumbnail_path = source["thumbnail_path"];
+	        this.course_path = source["course_path"];
+	        this.total_duration = source["total_duration"];
+	        this.total_lectures = source["total_lectures"];
+	        this.created_at = this.convertValues(source["created_at"], null);
+	        this.updated_at = this.convertValues(source["updated_at"], null);
+	        this.completed_lectures = source["completed_lectures"];
+	        this.completion_percentage = source["completion_percentage"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class ListLecturesWithProgressBySectionRow {
 	    id: number;
 	    section_id: number;

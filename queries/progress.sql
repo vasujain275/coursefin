@@ -32,7 +32,6 @@ ON CONFLICT(lecture_id) DO UPDATE SET
     total_duration = excluded.total_duration,
     last_position = excluded.last_position,
     completed = excluded.completed,
-    watch_count = COALESCE(progress.watch_count, 0) + COALESCE(excluded.watch_count, 0),  -- Increment watch count (NULL-safe)
     last_watched_at = excluded.last_watched_at,
     updated_at = CURRENT_TIMESTAMP
 RETURNING *;
@@ -96,8 +95,8 @@ SELECT
     COUNT(CASE WHEN completed = 1 THEN 1 END) as completed_count,
     SUM(watched_duration) as total_watched_duration,
     MAX(last_watched_at) as last_watched_at,
-    CAST(COUNT(CASE WHEN completed = 1 THEN 1 END) AS REAL) / 
-        NULLIF(COUNT(*), 0) * 100 as completion_percentage
+    CAST(CAST(COUNT(CASE WHEN completed = 1 THEN 1 END) AS REAL) / 
+        NULLIF(COUNT(*), 0) * 100 AS REAL) as completion_percentage
 FROM progress 
 WHERE course_id = ?;
 

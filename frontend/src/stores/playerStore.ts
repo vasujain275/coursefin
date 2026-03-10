@@ -5,11 +5,12 @@
 // Pattern: Zustand store with Wails backend integration
 // ============================================================================
 
-import type { Course, Lecture, Section } from '@/types';
+import type { CourseWithSections, Lecture, LectureWithProgress, SectionWithLectures } from '@/types';
+import type { course, sqlc } from '@/wailsjs/go/models';
 import { create } from 'zustand';
 
 interface PlayerState {
-  course: Course | null;
+  course: CourseWithSections | null;
   currentLecture: Lecture | null;
   isLoading: boolean;
   error: string | null;
@@ -46,7 +47,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       }
 
       // Convert backend data to frontend types
-      const convertedCourse: Course = {
+      const convertedCourse: CourseWithSections = {
         id: courseData.id,
         title: courseData.title,
         slug: courseData.slug,
@@ -59,8 +60,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
         totalLectures: courseData.total_lectures,
         createdAt: courseData.created_at,
         updatedAt: courseData.updated_at,
-        sections: courseData.sections.map((section: any, sectionIdx: number) => {
-          const convertedSection: Section = {
+        sections: courseData.sections.map((section: course.SectionWithLectures, sectionIdx: number) => {
+          const convertedSection: SectionWithLectures = {
             id: section.id,
             courseId: section.course_id,
             title: section.title,
@@ -68,8 +69,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
             orderIndex: sectionIdx,
             description: section.description,
             createdAt: section.created_at,
-            lectures: section.lectures.map((lecture: any, lectureIdx: number) => {
-              const convertedLecture: Lecture = {
+            lectures: section.lectures.map((lecture: sqlc.ListLecturesWithProgressBySectionRow, lectureIdx: number) => {
+              const convertedLecture: LectureWithProgress = {
                 id: lecture.id,
                 sectionId: lecture.section_id,
                 courseId: lecture.course_id,
@@ -101,7 +102,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       // Find initial lecture
       let initialLecture: Lecture | null = null;
       if (initialLectureId) {
-        for (const section of convertedCourse.sections!) {
+        for (const section of convertedCourse.sections) {
           const found = section.lectures.find(l => l.id === initialLectureId);
           if (found) {
             initialLecture = found;
@@ -109,8 +110,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
           }
         }
       }
-      if (!initialLecture && convertedCourse.sections!.length > 0 && convertedCourse.sections![0].lectures.length > 0) {
-        initialLecture = convertedCourse.sections![0].lectures[0];
+      if (!initialLecture && convertedCourse.sections.length > 0 && convertedCourse.sections[0].lectures.length > 0) {
+        initialLecture = convertedCourse.sections[0].lectures[0];
       }
 
       set({
@@ -132,7 +133,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
 
   markLectureCompleted: (lectureId: number) => {
     const { course } = get();
-    if (!course?.sections) return;
+    if (!course) return;
 
     const updatedSections = course.sections.map(section => ({
       ...section,
@@ -148,7 +149,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
 
   navigateNext: () => {
     const { course, currentLecture } = get();
-    if (!course?.sections || !currentLecture) return;
+    if (!course || !currentLecture) return;
 
     const allLectures = course.sections.flatMap(s => s.lectures);
     const currentIndex = allLectures.findIndex(l => l.id === currentLecture.id);
@@ -160,7 +161,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
 
   navigatePrevious: () => {
     const { course, currentLecture } = get();
-    if (!course?.sections || !currentLecture) return;
+    if (!course || !currentLecture) return;
 
     const allLectures = course.sections.flatMap(s => s.lectures);
     const currentIndex = allLectures.findIndex(l => l.id === currentLecture.id);
@@ -172,7 +173,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
 
   hasNext: () => {
     const { course, currentLecture } = get();
-    if (!course?.sections || !currentLecture) return false;
+    if (!course || !currentLecture) return false;
     const allLectures = course.sections.flatMap(s => s.lectures);
     const currentIndex = allLectures.findIndex(l => l.id === currentLecture.id);
     return currentIndex >= 0 && currentIndex < allLectures.length - 1;
@@ -180,7 +181,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
 
   hasPrevious: () => {
     const { course, currentLecture } = get();
-    if (!course?.sections || !currentLecture) return false;
+    if (!course || !currentLecture) return false;
     const allLectures = course.sections.flatMap(s => s.lectures);
     const currentIndex = allLectures.findIndex(l => l.id === currentLecture.id);
     return currentIndex > 0;

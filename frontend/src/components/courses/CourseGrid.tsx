@@ -15,6 +15,8 @@ import { CourseCard } from './CourseCard';
 interface CourseGridProps {
   courses: Course[];
   onCourseClick?: (course: Course) => void;
+  onCourseRemove?: (course: Course) => void;
+  onOpenCourseFolder?: (course: Course) => void;
   isLoading?: boolean;
   emptyMessage?: string;
   emptyAction?: () => void;
@@ -24,6 +26,8 @@ interface CourseGridProps {
 export function CourseGrid({
   courses,
   onCourseClick,
+  onCourseRemove,
+  onOpenCourseFolder,
   isLoading = false,
   emptyMessage = 'No courses found',
   emptyAction,
@@ -72,6 +76,8 @@ export function CourseGrid({
           <CourseCard
             course={course}
             onClick={() => onCourseClick?.(course)}
+            onRemove={() => onCourseRemove?.(course)}
+            onOpenFolder={() => onOpenCourseFolder?.(course)}
           />
         </div>
       ))}

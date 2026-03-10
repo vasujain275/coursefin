@@ -57,5 +57,5 @@ const Button = React.forwardRef<
 
 Button.displayName = 'Button';
 
-// eslint-disable-next-line react-refresh/only-export-components
+// eslint-disable-next-line react-refresh/only-export-components -- buttonVariants is a constant export needed for variant customization
 export { Button, buttonVariants };

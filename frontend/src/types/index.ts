@@ -14,21 +14,29 @@ export interface Lecture {
   courseId: number;
   title: string;
   lectureNumber: number;
-  orderIndex: number;
   lectureType: string;
   isQuiz?: boolean;
   isDownloadable?: boolean;
   filePath: string;
-  subtitlePath?: string;
   originalFilename?: string;
   resourcesPath?: string;
   fileSize?: number;
-  duration: number;
+  duration?: number;
   videoCodec?: string;
   resolution?: string;
   hasSubtitles?: boolean;
-  isCompleted: boolean;
   createdAt?: string;
+  // Optional computed fields (added during conversion)
+  orderIndex?: number;
+  subtitlePath?: string;
+  isCompleted?: boolean;
+}
+
+// Lecture with progress data (from ListLecturesWithProgressBySection)
+export interface LectureWithProgress extends Lecture {
+  isCompleted: boolean;
+  lastPosition?: number;
+  watchCount?: number;
 }
 
 export interface Section {
@@ -36,10 +44,17 @@ export interface Section {
   courseId: number;
   title: string;
   sectionNumber: number;
-  orderIndex: number;
   description?: string;
-  lectures: Lecture[];
   createdAt?: string;
+  // Optional computed fields (added during conversion)
+  orderIndex?: number;
+  // Optional nested lectures (populated during conversion or from SectionWithLectures)
+  lectures?: LectureWithProgress[];
+}
+
+// Section with all its lectures (from GetCourseWithSections)
+export interface SectionWithLectures extends Omit<Section, 'lectures'> {
+  lectures: LectureWithProgress[];
 }
 
 export interface Course {
@@ -50,17 +65,83 @@ export interface Course {
   instructorName?: string;
   thumbnailUrl?: string;
   thumbnailPath?: string;
-  coursePath: string;           // ABSOLUTE path to course folder
-  totalDuration: number;
+  coursePath: string;
+  totalDuration?: number;
   totalLectures?: number;
   createdAt?: string;
   updatedAt?: string;
-  progress?: number;            // Computed progress percentage (0-100)
-  completedLectures?: number;   // Number of completed lectures (from ListCoursesWithProgress)
-  progressPercent?: number;     // Completion percentage (from ListCoursesWithProgress)
-  hasProgress?: boolean;        // Whether user has any progress on this course
-  lastWatchedAt?: string;       // ISO timestamp of last watch activity
-  sections?: Section[];         // Only populated when fetching with GetCourseWithSections
+  // Optional progress fields (populated from ListCoursesWithProgress)
+  completedLectures?: number;
+  progressPercent?: number;
+  hasProgress?: boolean;
+  lastWatchedAt?: string;
+  // Optional nested sections with lectures
+  sections?: (Section | SectionWithLectures)[];
+}
+
+// Course with progress metrics (from ListCoursesWithProgress)
+export interface CourseWithProgress extends Course {
+  completedLectures: number;
+  completionPercentage: number;
+}
+
+// Course with all its sections and lectures (from GetCourseWithSections)
+export interface CourseWithSections extends Course {
+  sections: SectionWithLectures[];
+}
+
+// ============================================================================
+// Lecture Progress Types
+// ============================================================================
+
+// Progress record for a lecture (from Progress model)
+export interface LectureProgress {
+  id: number;
+  lectureId: number;
+  courseId: number;
+  watchedDuration?: number;
+  totalDuration?: number;
+  lastPosition?: number;
+  completed?: boolean;
+  watchCount?: number;
+  firstWatchedAt?: string;
+  lastWatchedAt?: string;
+  updatedAt?: string;
+}
+
+// Subtitle track for a lecture (from Subtitle model)
+export interface SubtitleTrack {
+  id: number;
+  lectureId: number;
+  language: string;
+  format: string;
+  filePath: string;
+  createdAt?: string;
+}
+
+// Player-specific lecture info (from player.LectureInfo)
+export interface LectureInfo {
+  LectureID: number;
+  Title: string;
+  VideoURL: string;
+  SubtitleURL: string;
+  Duration: number;
+  ResumeAt: number;
+  HasNext: boolean;
+  HasPrevious: boolean;
+  NextID?: number;
+  PreviousID?: number;
+}
+
+// Video player state
+export interface PlayerState {
+  isPlaying: boolean;
+  currentTime: number;
+  duration: number;
+  volume: number;
+  playbackRate: number;
+  isFullscreen: boolean;
+  buffered: number;
 }
 
 // ============================================================================

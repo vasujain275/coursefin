@@ -3,14 +3,15 @@ package main
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
+	"os/exec"
 	"strings"
 
 	"coursefin/internal/course"
 	"coursefin/internal/database"
 	"coursefin/internal/player"
-	"coursefin/internal/progress"
 	"coursefin/internal/settings"
 	"coursefin/internal/sqlc"
 
@@ -19,14 +20,12 @@ import (
 
 // App struct
 type App struct {
-	ctx          context.Context
-	db           *database.DB
-	tracker      *progress.Tracker
-	playerSvc    *player.Service
-	videoHandler *player.VideoHandler
-	videoServer  *player.VideoServer
-	settingsSvc  *settings.Service
-	courseSvc    *course.Service
+	ctx         context.Context
+	db          *database.DB
+	playerSvc   *player.Service
+	videoServer *player.VideoServer
+	settingsSvc *settings.Service
+	courseSvc   *course.Service
 }
 
 // NewApp creates a new App application struct
@@ -43,7 +42,7 @@ func (a *App) startup(ctx context.Context) {
 	dataDir, err := database.GetAppDataDir()
 	if err != nil {
 		errMsg := fmt.Sprintf("Failed to get app data directory: %v", err)
-		fmt.Println(errMsg)
+		slog.Error("failed to get app data directory", "error", err)
 		runtime.MessageDialog(ctx, runtime.MessageDialogOptions{
 			Type:    runtime.ErrorDialog,
 			Title:   "Database Initialization Error",
@@ -52,12 +51,12 @@ func (a *App) startup(ctx context.Context) {
 		return
 	}
 
-	fmt.Printf("App data directory: %s\n", dataDir)
+	slog.Info("app data directory", "path", dataDir)
 
 	db, err := database.NewDB(dataDir)
 	if err != nil {
 		errMsg := fmt.Sprintf("Failed to initialize database: %v\n\nData directory: %s", err, dataDir)
-		fmt.Println(errMsg)
+		slog.Error("failed to initialize database", "error", err, "dataDir", dataDir)
 		runtime.MessageDialog(ctx, runtime.MessageDialogOptions{
 			Type:    runtime.ErrorDialog,
 			Title:   "Database Initialization Error",
@@ -66,97 +65,59 @@ func (a *App) startup(ctx context.Context) {
 		return
 	}
 	a.db = db
-	fmt.Printf("Database initialized at: %s\n", db.DBPath())
-
-	// Initialize progress tracker
-	a.tracker = progress.NewTracker(db)
-	fmt.Println("Progress tracker initialized")
-
-	// Load completion threshold from settings
-	threshold, err := a.db.Queries().GetAutoCompleteThreshold(ctx)
-	if err == nil {
-		// Convert string to float64
-		var thresholdFloat float64
-		fmt.Sscanf(threshold, "%f", &thresholdFloat)
-		a.tracker.SetCompletionThreshold(thresholdFloat)
-	}
+	slog.Info("database initialized", "path", db.DBPath())
 
 	// Get courses directory from settings
 	coursesDir, err := a.db.Queries().GetCoursesDirectory(ctx)
 	if err != nil || coursesDir == "" {
 		coursesDir = dataDir // Fallback to data directory
-		fmt.Printf("Using default courses directory: %s\n", coursesDir)
+		slog.Info("using default courses directory", "path", coursesDir)
 	} else {
-		fmt.Printf("Courses directory: %s\n", coursesDir)
+		slog.Info("courses directory", "path", coursesDir)
 	}
-
-	// Initialize video handler (no longer needs coursesDir - paths are now absolute)
-	a.videoHandler = player.NewVideoHandler()
-	fmt.Println("Video handler initialized")
 
 	// Initialize video server for serving videos via localhost HTTP
 	// This is needed because WebKitGTK in Wails doesn't properly handle
 	// video elements through the AssetHandler
 	videoServer, err := player.NewVideoServer()
 	if err != nil {
-		fmt.Printf("WARNING: Failed to start video server: %v\n", err)
+		slog.Warn("failed to start video server", "error", err)
 	} else {
 		a.videoServer = videoServer
-		fmt.Printf("Video server initialized on port %d\n", videoServer.GetPort())
+		slog.Info("video server initialized", "port", videoServer.GetPort())
 	}
 
 	// Initialize player service with video server
 	a.playerSvc = player.NewService(db, coursesDir, a.videoServer)
-	fmt.Println("Player service initialized")
+	slog.Info("player service initialized")
 
 	// Initialize settings service
 	a.settingsSvc = settings.NewService(db.Queries())
-	fmt.Println("Settings service initialized")
+	slog.Info("settings service initialized")
 
 	// Initialize course service
-	a.courseSvc = course.NewService(db.Queries())
-	fmt.Println("Course service initialized")
+	a.courseSvc = course.NewService(a.db)
+	slog.Info("course service initialized")
 }
 
 // shutdown is called when the app is closing
 func (a *App) shutdown(ctx context.Context) {
-	if a.tracker != nil {
-		fmt.Println("Stopping progress tracking...")
-		a.tracker.StopTracking()
-	}
-
 	if a.videoServer != nil {
-		fmt.Println("Stopping video server...")
+		slog.Info("stopping video server")
 		a.videoServer.Stop()
 	}
 
 	if a.db != nil {
-		fmt.Println("Checkpointing WAL before close...")
+		slog.Info("checkpointing WAL before close")
 		if _, err := a.db.Conn().Exec("PRAGMA wal_checkpoint(TRUNCATE)"); err != nil {
-			fmt.Printf("WAL checkpoint failed: %v\n", err)
+			slog.Error("WAL checkpoint failed", "error", err)
 		}
-		fmt.Println("Closing database connection...")
+		slog.Info("closing database connection")
 		a.db.Close()
 	}
 }
 
-// ServeHTTP implements http.Handler interface for custom asset serving
-// Routes video and subtitle requests to the video handler
 func (a *App) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	path := r.URL.Path
-	fmt.Printf("[ServeHTTP] Received request: %s\n", path)
-
-	// Check if this is a video or subtitle request
-	if strings.HasPrefix(path, "/videos/") || strings.HasPrefix(path, "/subtitles/") {
-		fmt.Printf("[ServeHTTP] Routing to video handler: %s\n", path)
-		if a.videoHandler != nil {
-			a.videoHandler.ServeHTTP(w, r)
-			return
-		}
-		fmt.Println("[ServeHTTP] Video handler is nil!")
-	}
-
-	// For all other paths, return 404 (Wails will handle frontend assets separately)
 	http.NotFound(w, r)
 }
 
@@ -165,26 +126,20 @@ func (a *App) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // =====================================
 
 // GetAllCourses returns all courses from the database
-func (a *App) GetAllCourses() ([]interface{}, error) {
+func (a *App) GetAllCourses() ([]*sqlc.ListCoursesWithProgressRow, error) {
 	if a.db == nil {
 		return nil, fmt.Errorf("database not initialized")
 	}
 
 	courses, err := a.db.Queries().ListCoursesWithProgress(a.ctx, sqlc.ListCoursesWithProgressParams{
-		Limit:  100, // Default to 100 courses
+		Limit:  10000,
 		Offset: 0,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to list courses: %w", err)
 	}
 
-	// Convert to generic interface slice for frontend
-	result := make([]interface{}, len(courses))
-	for i, course := range courses {
-		result[i] = course
-	}
-
-	return result, nil
+	return courses, nil
 }
 
 // GetDatabasePath returns the path to the database file
@@ -218,44 +173,12 @@ func (a *App) GetAppSettings() (map[string]string, error) {
 // Progress Tracking Methods
 // =====================================
 
-// StartTrackingProgress begins tracking playback progress for a lecture
-func (a *App) StartTrackingProgress(lectureID int64) error {
-	if a.tracker == nil {
-		return fmt.Errorf("progress tracker not initialized")
-	}
-	return a.tracker.StartTracking(a.ctx, lectureID)
-}
-
-// StopTrackingProgress stops tracking the current lecture
-func (a *App) StopTrackingProgress() error {
-	if a.tracker == nil {
-		return fmt.Errorf("progress tracker not initialized")
-	}
-	return a.tracker.StopTracking()
-}
-
-// GetResumePosition returns the last playback position for a lecture
-func (a *App) GetResumePosition(lectureID int64) (float64, error) {
-	if a.tracker == nil {
-		return 0, fmt.Errorf("progress tracker not initialized")
-	}
-	return a.tracker.GetResumePosition(a.ctx, lectureID)
-}
-
 // GetLectureProgress returns progress information for a specific lecture
 func (a *App) GetLectureProgress(lectureID int64) (*sqlc.Progress, error) {
 	if a.db == nil {
 		return nil, fmt.Errorf("database not initialized")
 	}
 	return a.db.Queries().GetProgressByLecture(a.ctx, lectureID)
-}
-
-// IsTrackingProgress returns whether progress tracking is currently active
-func (a *App) IsTrackingProgress() bool {
-	if a.tracker == nil {
-		return false
-	}
-	return a.tracker.IsTracking()
 }
 
 // =====================================
@@ -443,12 +366,54 @@ func (a *App) SelectFolderDialog(title string) (string, error) {
 func (a *App) ToggleWindowFullscreen() {
 	if runtime.WindowIsFullscreen(a.ctx) {
 		runtime.WindowUnfullscreen(a.ctx)
+		runtime.EventsEmit(a.ctx, "window:fullscreen", false)
 	} else {
 		runtime.WindowFullscreen(a.ctx)
+		runtime.EventsEmit(a.ctx, "window:fullscreen", true)
 	}
 }
 
 // IsWindowFullscreen returns the current window fullscreen state
 func (a *App) IsWindowFullscreen() bool {
 	return runtime.WindowIsFullscreen(a.ctx)
+}
+
+// =====================================
+// Course Context Menu Actions
+// =====================================
+
+// DeleteCourse removes a course and all its data from the library database.
+func (a *App) DeleteCourse(courseID int64) error {
+	if a.db == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	return a.db.Queries().DeleteCourse(a.ctx, courseID)
+}
+
+// OpenCourseFolder opens the course's folder in the system file manager.
+func (a *App) OpenCourseFolder(courseID int64) error {
+	if a.db == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	c, err := a.db.Queries().GetCourseByID(a.ctx, courseID)
+	if err != nil {
+		return fmt.Errorf("course not found: %w", err)
+	}
+	return exec.Command("xdg-open", c.CoursePath).Start()
+}
+
+// MarkLectureWatched marks a lecture as completed in the progress table.
+func (a *App) MarkLectureWatched(lectureID int64) error {
+	if a.db == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	return a.db.Queries().MarkLectureCompleted(a.ctx, lectureID)
+}
+
+// MarkLectureUnwatched marks a lecture as incomplete in the progress table.
+func (a *App) MarkLectureUnwatched(lectureID int64) error {
+	if a.db == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	return a.db.Queries().MarkLectureIncomplete(a.ctx, lectureID)
 }

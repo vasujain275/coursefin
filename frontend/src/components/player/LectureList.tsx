@@ -15,16 +15,24 @@ import {
   AccordionTrigger,
 } from '@/components/ui/accordion';
 import { Button } from '@/components/ui/button';
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from '@/components/ui/context-menu';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { cn } from '@/lib/utils';
-import type { Lecture, Section } from '@/types';
+import { cn, formatDuration } from '@/lib/utils';
+import type { Lecture, SectionWithLectures } from '@/types';
+import { MarkLectureUnwatched, MarkLectureWatched } from '@/wailsjs/go/main/App';
 import { Check, File, FileText, PlayCircle, X } from 'lucide-react';
 
 interface LectureListProps {
-  sections: Section[];
+  sections: SectionWithLectures[];
   currentLectureId?: number;
   onLectureSelect: (lecture: Lecture) => void;
   onClose?: () => void;
+  onLectureUpdated?: () => void;
 }
 
 export function LectureList({
@@ -32,6 +40,7 @@ export function LectureList({
   currentLectureId,
   onLectureSelect,
   onClose,
+  onLectureUpdated,
 }: LectureListProps) {
   // Find which section contains the current lecture
   const currentSectionIndex = sections.findIndex(section =>
@@ -53,15 +62,6 @@ export function LectureList({
       return <PlayCircle className={cls} />;
     }
     return <File className={cls} />;
-  };
-
-  const formatDuration = (seconds: number): string => {
-    if (!seconds || seconds <= 0) return '';
-    const h = Math.floor(seconds / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-    const s = Math.floor(seconds % 60);
-    if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-    return `${m}:${String(s).padStart(2, '0')}`;
   };
 
   const totalLectures = sections.reduce((acc, s) => acc + s.lectures.length, 0);
@@ -148,50 +148,69 @@ export function LectureList({
                     const isActive = lecture.id === currentLectureId;
 
                     return (
-                      <button
-                        key={lecture.id}
-                        onClick={() => onLectureSelect(lecture)}
-                        className={cn(
-                          'w-full flex items-start gap-2.5 px-4 py-2.5 text-left transition-all duration-150',
-                          'border-l-2',
-                          isActive
-                            ? 'bg-primary/8 border-l-primary'
-                            : 'border-l-transparent hover:bg-muted/15 hover:border-l-border/60'
-                        )}
-                      >
-                        {/* Icon */}
-                        <div className="mt-0.5">{getLectureIcon(lecture, isActive)}</div>
+                      <ContextMenu key={lecture.id}>
+                        <ContextMenuTrigger asChild>
+                          <button
+                            onClick={() => onLectureSelect(lecture)}
+                            className={cn(
+                              'w-full flex items-start gap-2.5 px-4 py-2.5 text-left transition-all duration-150',
+                              'border-l-2',
+                              isActive
+                                ? 'bg-primary/8 border-l-primary'
+                                : 'border-l-transparent hover:bg-muted/15 hover:border-l-border/60'
+                            )}
+                          >
+                            {/* Icon */}
+                            <div className="mt-0.5">{getLectureIcon(lecture, isActive)}</div>
 
-                        {/* Text */}
-                        <div className="flex-1 min-w-0 space-y-0.5">
-                          <p className={cn(
-                            'text-xs leading-relaxed line-clamp-2',
-                            isActive
-                              ? 'text-primary font-medium'
-                              : 'text-foreground/80'
-                          )}>
-                            {lecture.title}
-                          </p>
+                            {/* Text */}
+                            <div className="flex-1 min-w-0 space-y-0.5">
+                              <p className={cn(
+                                'text-xs leading-relaxed line-clamp-2',
+                                isActive
+                                  ? 'text-primary font-medium'
+                                  : 'text-foreground/80'
+                              )}>
+                                {lecture.title}
+                              </p>
 
-                          {/* Meta */}
-                          <div className="flex items-center gap-2">
-                            {lecture.lectureType === 'text' && (
-                              <span className="text-[10px] text-muted-foreground">Article</span>
-                            )}
-                            {lecture.duration > 0 && (
-                              <span className="text-[10px] text-muted-foreground font-mono">
-                                {formatDuration(lecture.duration)}
-                              </span>
-                            )}
-                            {lecture.isCompleted && (
-                              <span className="flex items-center gap-0.5 text-[10px] text-success">
-                                <Check className="w-3 h-3" />
-                                Done
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </button>
+                              {/* Meta */}
+                              <div className="flex items-center gap-2">
+                                {lecture.lectureType === 'text' && (
+                                  <span className="text-[10px] text-muted-foreground">Article</span>
+                                )}
+                                {(lecture.duration ?? 0) > 0 && (
+                                  <span className="text-[10px] text-muted-foreground font-mono">
+                                    {formatDuration(lecture.duration ?? 0)}
+                                  </span>
+                                )}
+                                {lecture.isCompleted && (
+                                  <span className="flex items-center gap-0.5 text-[10px] text-success">
+                                    <Check className="w-3 h-3" />
+                                    Done
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </button>
+                        </ContextMenuTrigger>
+                        <ContextMenuContent>
+                          <ContextMenuItem
+                            onClick={() => {
+                              void MarkLectureWatched(lecture.id).then(() => onLectureUpdated?.());
+                            }}
+                          >
+                            Mark as watched
+                          </ContextMenuItem>
+                          <ContextMenuItem
+                            onClick={() => {
+                              void MarkLectureUnwatched(lecture.id).then(() => onLectureUpdated?.());
+                            }}
+                          >
+                            Mark as unwatched
+                          </ContextMenuItem>
+                        </ContextMenuContent>
+                      </ContextMenu>
                     );
                   })}
                 </AccordionContent>

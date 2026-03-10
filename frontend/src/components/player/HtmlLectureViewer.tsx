@@ -9,9 +9,10 @@
 // ============================================================================
 
 import { Button } from '@/components/ui/button';
+import { usePlayerKeyboardShortcuts } from '@/hooks/usePlayerKeyboardShortcuts';
 import { GetHtmlLectureContent } from '@/wailsjs/go/main/App';
 import { AlertCircle, ChevronLeft, ChevronRight, FileText, Loader2 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 interface HtmlLectureViewerProps {
   lectureId: number;
@@ -33,6 +34,15 @@ export function HtmlLectureViewer({
   const [htmlContent, setHtmlContent] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | undefined>();
+  const getVideo = useCallback(() => null, []);
+
+  usePlayerKeyboardShortcuts(
+    { hasNext: Boolean(hasNext), hasPrevious: Boolean(hasPrevious) },
+    getVideo,
+    onNavigateNext,
+    onNavigatePrevious,
+    { enableMediaShortcuts: false },
+  );
 
   useEffect(() => {
     setLoading(true);
@@ -49,21 +59,6 @@ export function HtmlLectureViewer({
         setLoading(false);
       });
   }, [lectureId]);
-
-  // Keyboard navigation (N = next, P = previous)
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (
-        e.target instanceof HTMLInputElement ||
-        e.target instanceof HTMLTextAreaElement ||
-        e.target instanceof HTMLIFrameElement
-      ) return;
-      if ((e.key === 'n' || e.key === 'N') && hasNext) onNavigateNext?.();
-      if ((e.key === 'p' || e.key === 'P') && hasPrevious) onNavigatePrevious?.();
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [hasNext, hasPrevious, onNavigateNext, onNavigatePrevious]);
 
   return (
     <div className="flex h-full w-full flex-col bg-background">

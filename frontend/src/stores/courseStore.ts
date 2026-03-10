@@ -8,6 +8,26 @@
 import type { Course } from '@/types';
 import { create } from 'zustand';
 
+// Raw backend row shape from GetAllCourses (sqlc.ListCoursesWithProgressRow)
+interface RawCourseRow {
+  id: number;
+  title: string;
+  slug: string;
+  description?: string;
+  instructor_name?: string;
+  thumbnail_url?: string;
+  thumbnail_path?: string;
+  course_path: string;
+  total_duration?: number;
+  total_lectures?: number;
+  created_at?: string;
+  updated_at?: string;
+  completed_lectures?: number;
+  completion_percentage?: number;
+  last_watched_at?: string;
+  has_progress?: number;
+}
+
 interface CourseState {
   courses: Course[];
   isLoading: boolean;
@@ -29,8 +49,8 @@ export const useCourseStore = create<CourseState>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const { GetAllCourses } = await import('@/wailsjs/go/main/App');
-      const rawCourses = await GetAllCourses();
-      const courses: Course[] = (rawCourses || []).map((c: any) => ({
+      const rawCourses = await GetAllCourses() as RawCourseRow[];
+      const courses: Course[] = (rawCourses || []).map((c: RawCourseRow) => ({
         id: c.id,
         title: c.title,
         slug: c.slug,
@@ -63,8 +83,8 @@ export const useCourseStore = create<CourseState>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const { GetAllCourses } = await import('@/wailsjs/go/main/App');
-      const rawCourses = await GetAllCourses();
-      const courses: Course[] = (rawCourses || []).map((c: any) => ({
+      const rawCourses = await GetAllCourses() as RawCourseRow[];
+      const courses: Course[] = (rawCourses || []).map((c: RawCourseRow) => ({
         id: c.id,
         title: c.title,
         slug: c.slug,

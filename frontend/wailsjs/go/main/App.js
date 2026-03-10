@@ -6,6 +6,10 @@ export function CompleteOnboarding() {
   return window['go']['main']['App']['CompleteOnboarding']();
 }
 
+export function DeleteCourse(arg1) {
+  return window['go']['main']['App']['DeleteCourse'](arg1);
+}
+
 export function GetAllCourses() {
   return window['go']['main']['App']['GetAllCourses']();
 }
@@ -38,10 +42,6 @@ export function GetLectureProgress(arg1) {
   return window['go']['main']['App']['GetLectureProgress'](arg1);
 }
 
-export function GetResumePosition(arg1) {
-  return window['go']['main']['App']['GetResumePosition'](arg1);
-}
-
 export function GetSettingValue(arg1) {
   return window['go']['main']['App']['GetSettingValue'](arg1);
 }
@@ -62,12 +62,20 @@ export function IsFirstRun() {
   return window['go']['main']['App']['IsFirstRun']();
 }
 
-export function IsTrackingProgress() {
-  return window['go']['main']['App']['IsTrackingProgress']();
-}
-
 export function IsWindowFullscreen() {
   return window['go']['main']['App']['IsWindowFullscreen']();
+}
+
+export function MarkLectureUnwatched(arg1) {
+  return window['go']['main']['App']['MarkLectureUnwatched'](arg1);
+}
+
+export function MarkLectureWatched(arg1) {
+  return window['go']['main']['App']['MarkLectureWatched'](arg1);
+}
+
+export function OpenCourseFolder(arg1) {
+  return window['go']['main']['App']['OpenCourseFolder'](arg1);
 }
 
 export function ScanLibrary() {
@@ -96,14 +104,6 @@ export function SetTheme(arg1) {
 
 export function StartLectureWatch(arg1) {
   return window['go']['main']['App']['StartLectureWatch'](arg1);
-}
-
-export function StartTrackingProgress(arg1) {
-  return window['go']['main']['App']['StartTrackingProgress'](arg1);
-}
-
-export function StopTrackingProgress() {
-  return window['go']['main']['App']['StopTrackingProgress']();
 }
 
 export function ToggleWindowFullscreen() {

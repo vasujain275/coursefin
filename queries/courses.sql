@@ -85,8 +85,8 @@ SELECT
     c.*,
     COUNT(CASE WHEN p.completed = 1 THEN 1 END) as completed_lectures,
     COUNT(p.id) as total_progress_records,
-    CAST(COUNT(CASE WHEN p.completed = 1 THEN 1 END) AS REAL) / 
-        NULLIF(c.total_lectures, 0) * 100 as completion_percentage
+    CAST(CAST(COUNT(CASE WHEN p.completed = 1 THEN 1 END) AS REAL) / 
+        NULLIF(c.total_lectures, 0) * 100 AS REAL) as completion_percentage
 FROM courses c
 LEFT JOIN progress p ON c.id = p.course_id
 WHERE c.id = ?
@@ -102,8 +102,8 @@ GROUP BY c.id;
 SELECT 
     c.*,
     COUNT(CASE WHEN p.completed = 1 THEN 1 END) as completed_lectures,
-    CAST(COUNT(CASE WHEN p.completed = 1 THEN 1 END) AS REAL) / 
-        NULLIF(c.total_lectures, 0) * 100 as completion_percentage
+    CAST(CAST(COUNT(CASE WHEN p.completed = 1 THEN 1 END) AS REAL) / 
+        NULLIF(c.total_lectures, 0) * 100 AS REAL) as completion_percentage
 FROM courses c
 LEFT JOIN progress p ON c.id = p.course_id
 GROUP BY c.id

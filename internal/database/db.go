@@ -16,6 +16,7 @@ import (
 	"database/sql"
 	"embed"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 
@@ -39,7 +40,7 @@ type DB struct {
 // dataDir: Application data directory where coursefin.db will be stored
 func NewDB(dataDir string) (*DB, error) {
 	// Log the data directory we're trying to create
-	fmt.Printf("Creating data directory: %s\n", dataDir)
+	slog.Info("creating data directory", "path", dataDir)
 
 	// Ensure data directory exists
 	// Use 0777 for cross-platform compatibility (OS will apply umask)
@@ -54,7 +55,7 @@ func NewDB(dataDir string) (*DB, error) {
 		return nil, fmt.Errorf("data directory path '%s' exists but is not a directory", dataDir)
 	}
 
-	fmt.Printf("Data directory confirmed: %s\n", dataDir)
+	slog.Info("data directory confirmed", "path", dataDir)
 
 	dbPath := filepath.Join(dataDir, "coursefin.db")
 
@@ -73,6 +74,24 @@ func NewDB(dataDir string) (*DB, error) {
 	// Configure connection pool
 	conn.SetMaxOpenConns(1) // SQLite works best with single writer
 	conn.SetMaxIdleConns(1)
+
+	// Apply additional performance pragmas via db.Exec
+	pragmas := map[string]string{
+		"journal_mode": "WAL",       // Write-Ahead Logging for better concurrency
+		"synchronous":  "NORMAL",    // Balance safety and performance
+		"cache_size":   "-32000",    // 32MB cache (negative = KB)
+		"temp_store":   "MEMORY",    // In-memory temporary storage
+		"mmap_size":    "134217728", // 128MB memory-mapped I/O
+		"foreign_keys": "ON",        // Enforce referential integrity
+	}
+
+	for pragma, value := range pragmas {
+		pragmaSQL := fmt.Sprintf("PRAGMA %s=%s;", pragma, value)
+		if _, err := conn.Exec(pragmaSQL); err != nil {
+			conn.Close()
+			return nil, fmt.Errorf("failed to set PRAGMA %s=%s: %w", pragma, value, err)
+		}
+	}
 
 	// Test connection
 	if err := conn.Ping(); err != nil {
@@ -95,9 +114,9 @@ func NewDB(dataDir string) (*DB, error) {
 	// Quick integrity check — log warning on corruption, don't block startup
 	var result string
 	if err := conn.QueryRow("PRAGMA quick_check").Scan(&result); err != nil {
-		fmt.Printf("WARNING: database integrity check failed: %v\n", err)
+		slog.Warn("database integrity check failed", "error", err)
 	} else if result != "ok" {
-		fmt.Printf("WARNING: database corruption detected: %s\n", result)
+		slog.Warn("database corruption detected", "result", result)
 	}
 
 	return db, nil
@@ -202,7 +221,7 @@ func GetAppDataDir() (string, error) {
 			// Fallback if APPDATA is not set
 			dataDir = filepath.Join(homeDir, "AppData", "Roaming", "coursefin")
 		}
-		fmt.Printf("Windows detected - APPDATA: %s, using: %s\n", appData, dataDir)
+		slog.Info("windows detected", "APPDATA", appData, "dataDir", dataDir)
 	}
 
 	return dataDir, nil

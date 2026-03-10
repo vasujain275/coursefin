@@ -13,10 +13,13 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useSettingsStore } from '@/stores/settingsStore';
+import { useShallow } from 'zustand/react/shallow';
 import { Monitor, Moon, Sun } from 'lucide-react';
 
 export function ThemeToggle() {
-  const { theme, setTheme } = useSettingsStore();
+  const { theme, setTheme } = useSettingsStore(
+    useShallow(state => ({ theme: state.theme, setTheme: state.setTheme }))
+  );
 
   const icon =
     theme === 'dark' ? (

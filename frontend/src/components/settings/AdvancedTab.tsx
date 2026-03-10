@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { useSettingsStore } from '@/stores/settingsStore';
+import { useShallow } from 'zustand/react/shallow';
 import { Subtitles, Database, Info, RotateCcw, BookOpen } from 'lucide-react';
 import { toast } from 'sonner';
 import { useState } from 'react';
@@ -21,7 +22,12 @@ export function AdvancedTab() {
     thumbnailCacheEnabled,
     updateSetting,
     resetToDefaults,
-  } = useSettingsStore();
+  } = useSettingsStore(useShallow(state => ({
+    subtitleLanguagePreference: state.subtitleLanguagePreference,
+    thumbnailCacheEnabled: state.thumbnailCacheEnabled,
+    updateSetting: state.updateSetting,
+    resetToDefaults: state.resetToDefaults,
+  })));
 
   const [subtitlePref, setSubtitlePref] = useState(subtitleLanguagePreference);
 

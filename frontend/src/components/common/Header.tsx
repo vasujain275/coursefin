@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { BookOpen, HelpCircle, Info, Search, Settings } from 'lucide-react';
+import { useRef, useState, useEffect } from 'react';
 
 interface HeaderProps {
   onSettings?: () => void;
@@ -23,9 +24,32 @@ interface HeaderProps {
 }
 
 export function Header({ onSettings, onSearch }: HeaderProps) {
+  const [searchValue, setSearchValue] = useState('');
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-    onSearch?.(e.target.value);
+    const value = e.target.value;
+    setSearchValue(value);
+
+    // Clear existing timer
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+    }
+
+    // Set new timer for debounced search
+    timerRef.current = setTimeout(() => {
+      onSearch?.(value);
+    }, 300);
   };
+
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
+    };
+  }, []);
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 wails-drag">
@@ -47,6 +71,7 @@ export function Header({ onSettings, onSearch }: HeaderProps) {
             <Input
               type="search"
               placeholder="Search courses..."
+              value={searchValue}
               onChange={handleSearch}
               className="pl-9 h-9 bg-muted/30 border-border/50 transition-all focus:bg-muted/50 focus:border-primary/50 wails-no-drag"
               aria-label="Search courses"

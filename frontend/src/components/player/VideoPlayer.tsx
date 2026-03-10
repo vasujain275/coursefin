@@ -1,11 +1,10 @@
 import { Button } from '@/components/ui/button';
-import {
-    GetVideoResumePosition,
-    StartLectureWatch,
-    UpdateVideoProgress,
-    ToggleWindowFullscreen,
-} from '@/wailsjs/go/main/App';
 import type { player } from '@/wailsjs/go/models';
+import { useMediaReady } from '@/hooks/useMediaReady';
+import { usePlayerKeyboardShortcuts } from '@/hooks/usePlayerKeyboardShortcuts';
+import { useProgressSaver } from '@/hooks/useProgressSaver';
+import { useResumePosition } from '@/hooks/useResumePosition';
+import { formatDuration } from '@/lib/utils';
 import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import PlyrComponent, { type APITypes, type PlyrProps } from 'plyr-react';
@@ -32,8 +31,8 @@ const PLYR_OPTIONS: PlyrProps['options'] = {
     'volume',
     'captions',
     'settings',
-    'fullscreen',
   ],
+  fullscreen: { enabled: false, fallback: false, iosNative: false },
   // We manage global keyboard shortcuts ourselves below so that navigation
   // keys (N/P) don't get swallowed by Plyr.  Plyr still handles shortcuts
   // when the player itself is focused.
@@ -51,7 +50,6 @@ export function VideoPlayer({
   onNavigatePrevious,
 }: VideoPlayerProps) {
   const plyrRef = useRef<APITypes>(null);
-  const progressIntervalRef = useRef<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -76,224 +74,53 @@ export function VideoPlayer({
       : {}),
   };
 
-  // Helper — safely returns the underlying HTMLVideoElement if Plyr is ready.
-  // Plyr's TypeScript types don't expose a .media property, so we query the
-  // container element for the <video> tag instead.
-  const getVideo = (): HTMLVideoElement | null => {
-    const container = plyrRef.current?.plyr?.elements?.container;
-    if (!container) return null;
-    const el = container.querySelector('video');
-    return el instanceof HTMLVideoElement ? el : null;
-  };
+  const { videoEl, isReady, getVideo } = useMediaReady(plyrRef, lectureInfo.LectureID);
+  useResumePosition(lectureInfo.LectureID, getVideo);
+  useProgressSaver(lectureInfo.LectureID, getVideo);
+  usePlayerKeyboardShortcuts(
+    { hasNext: lectureInfo.HasNext, hasPrevious: lectureInfo.HasPrevious },
+    getVideo,
+    onNavigateNext,
+    onNavigatePrevious,
+  );
 
-  // Main effect: set up event listeners, load resume position, start session.
-  // Re-runs only when the lecture ID changes (same as before).
   useEffect(() => {
-    // Reset state for new video
     setIsLoading(true);
     setError(null);
+  }, [lectureInfo.LectureID]);
 
-    console.log('[VideoPlayer] Initializing with lectureInfo:', lectureInfo);
-    console.log('[VideoPlayer] Video URL:', lectureInfo.VideoURL);
-    console.log('[VideoPlayer] Subtitle URL:', lectureInfo.SubtitleURL);
+  useEffect(() => {
+    if (!videoEl) return;
 
-    // --- event handlers ---
-
-    const handleLoadedData = () => {
-      console.log('[VideoPlayer] Video loaded successfully');
-      setIsLoading(false);
-      void loadResumePosition();
-    };
-
-    const handleCanPlay = () => {
-      console.log('[VideoPlayer] Video can play');
+    const handleReady = () => {
       setIsLoading(false);
     };
 
     const handleError = () => {
-      const video = getVideo();
-      const videoError = video?.error ?? null;
-      console.error('[VideoPlayer] Video error:', videoError);
-      console.error('[VideoPlayer] Video src:', video?.src);
+      const videoError = videoEl.error ?? null;
       setIsLoading(false);
       setError(`Failed to load video: ${videoError?.message ?? 'Unknown error'}`);
     };
 
-    const handlePlay = () => {
-      if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
-      progressIntervalRef.current = window.setInterval(() => {
-        void saveProgress();
-      }, 5000);
-    };
-
-    const handlePause = () => {
-      void saveProgress();
-      if (progressIntervalRef.current) {
-        clearInterval(progressIntervalRef.current);
-        progressIntervalRef.current = null;
-      }
-    };
-
-    const handleSeeked = () => {
-      void saveProgress();
-    };
-
-    // --- async helpers ---
-
-    const loadResumePosition = async () => {
-      try {
-        const resumeAt = await GetVideoResumePosition(lectureInfo.LectureID);
-        if (resumeAt > 0) {
-          const video = getVideo();
-          if (video) video.currentTime = resumeAt;
-        }
-      } catch (err) {
-        console.error('Failed to load resume position:', err);
-      }
-    };
-
-    const saveProgress = async () => {
-      const video = getVideo();
-      if (!video) return;
-      try {
-        await UpdateVideoProgress(
-          lectureInfo.LectureID,
-          video.currentTime,
-          video.duration,
-        );
-      } catch (err) {
-        console.error('Failed to save progress:', err);
-      }
-    };
-
-    // Plyr may not have rendered into the DOM yet on the very first tick, so
-    // we poll for the <video> element to exist.
-    let video: HTMLVideoElement | null = null;
-
-    const addListeners = (el: HTMLVideoElement) => {
-      el.addEventListener('loadeddata', handleLoadedData);
-      el.addEventListener('canplay', handleCanPlay);
-      el.addEventListener('error', handleError);
-      el.addEventListener('play', handlePlay);
-      el.addEventListener('pause', handlePause);
-      el.addEventListener('seeked', handleSeeked);
-    };
-
-    // Plyr initialises asynchronously — poll until the <video> element exists.
-    // 50ms interval × 40 retries = 2s max wait, covering slow initialisations.
-    let pollAttempts = 0;
-    const pollId = window.setInterval(() => {
-      video = getVideo();
-      if (video) {
-        window.clearInterval(pollId);
-        addListeners(video);
-        return;
-      }
-      if (++pollAttempts >= 40) {
-        window.clearInterval(pollId);
-        console.error('[VideoPlayer] Failed to find <video> element after 2s');
-      }
-    }, 50);
-
-    // Also try immediately (no need to wait 50ms if already available)
-    video = getVideo();
-    if (video) {
-      window.clearInterval(pollId);
-      addListeners(video);
+    if (videoEl.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+      handleReady();
     }
 
-    // Start watch session
-    void StartLectureWatch(lectureInfo.LectureID).catch((err) =>
-      console.error('Failed to start watch session:', err),
-    );
+    videoEl.addEventListener('loadeddata', handleReady);
+    videoEl.addEventListener('canplay', handleReady);
+    videoEl.addEventListener('error', handleError);
 
     return () => {
-      window.clearInterval(pollId);
-
-      void saveProgress();
-      void saveProgress();
-
-      if (progressIntervalRef.current) {
-        clearInterval(progressIntervalRef.current);
-        progressIntervalRef.current = null;
-      }
-
-      if (video) {
-        video.removeEventListener('loadeddata', handleLoadedData);
-        video.removeEventListener('canplay', handleCanPlay);
-        video.removeEventListener('error', handleError);
-        video.removeEventListener('play', handlePlay);
-        video.removeEventListener('pause', handlePause);
-        video.removeEventListener('seeked', handleSeeked);
-      }
+      videoEl.removeEventListener('loadeddata', handleReady);
+      videoEl.removeEventListener('canplay', handleReady);
+      videoEl.removeEventListener('error', handleError);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lectureInfo.LectureID]);
-
-  // Global keyboard shortcuts (lecture navigation + player controls)
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't interfere with inputs
-      if (
-        e.target instanceof HTMLInputElement ||
-        e.target instanceof HTMLTextAreaElement
-      ) return;
-
-      const video = getVideo();
-
-      switch (e.key) {
-        case ' ':
-          e.preventDefault();
-          if (video) {
-            if (video.paused) void video.play();
-            else video.pause();
-          }
-          break;
-        case 'ArrowLeft':
-          e.preventDefault();
-          if (video) video.currentTime = Math.max(0, video.currentTime - 10);
-          break;
-        case 'ArrowRight':
-          e.preventDefault();
-          if (video) video.currentTime = Math.min(video.duration, video.currentTime + 10);
-          break;
-        case 'ArrowUp':
-          e.preventDefault();
-          if (video) video.volume = Math.min(1, video.volume + 0.1);
-          break;
-        case 'ArrowDown':
-          e.preventDefault();
-          if (video) video.volume = Math.max(0, video.volume - 0.1);
-          break;
-        case 'f':
-        case 'F':
-          e.preventDefault();
-          void ToggleWindowFullscreen();
-          break;
-        case 'm':
-        case 'M':
-          e.preventDefault();
-          if (video) video.muted = !video.muted;
-          break;
-        case 'n':
-        case 'N':
-          if (lectureInfo.HasNext && onNavigateNext) onNavigateNext();
-          break;
-        case 'p':
-        case 'P':
-          if (lectureInfo.HasPrevious && onNavigatePrevious) onNavigatePrevious();
-          break;
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [lectureInfo, onNavigateNext, onNavigatePrevious]);
+  }, [videoEl]);
 
   return (
     <div className="relative flex h-full w-full flex-col bg-background">
       {/* Loading Overlay */}
-      {isLoading && (
+      {isLoading && !error && (
         <div className="absolute inset-0 z-10 flex items-center justify-center bg-background">
           <Loader2 className="h-12 w-12 animate-spin text-primary" />
         </div>
@@ -318,6 +145,9 @@ export function VideoPlayer({
           source={plyrSource}
           options={PLYR_OPTIONS}
         />
+        {!isReady && !error && (
+          <div className="pointer-events-none absolute inset-0 bg-black/20" />
+        )}
       </div>
 
       {/* Navigation Controls */}
@@ -362,16 +192,4 @@ export function VideoPlayer({
       </div>
     </div>
   );
-}
-
-// Helper function to format duration
-function formatDuration(seconds: number): string {
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  const secs = Math.floor(seconds % 60);
-
-  if (hours > 0) {
-    return `${hours}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-  }
-  return `${minutes}:${String(secs).padStart(2, '0')}`;
 }

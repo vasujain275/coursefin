@@ -6,6 +6,7 @@
 // ============================================================================
 
 import type { AppSettings } from '@/types';
+import { applyTheme } from '@/lib/themeUtils';
 import { create } from 'zustand';
 
 interface SettingsState extends AppSettings {
@@ -105,17 +106,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       const { SetTheme } = await import('@/wailsjs/go/main/App');
       await SetTheme(theme);
       set({ theme });
-
-      // Apply theme to document
-      if (theme === 'dark') {
-        document.documentElement.classList.add('dark');
-      } else if (theme === 'light') {
-        document.documentElement.classList.remove('dark');
-      } else {
-        // System theme
-        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        document.documentElement.classList.toggle('dark', prefersDark);
-      }
+      applyTheme(theme);
     } catch (error) {
       set({ error: error instanceof Error ? error.message : 'Failed to set theme' });
     }
@@ -165,7 +156,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       set(defaults);
       
       // Apply theme
-      document.documentElement.classList.add('dark');
+      applyTheme('dark');
     } catch (error) {
       set({ error: error instanceof Error ? error.message : 'Failed to reset settings' });
       throw error;

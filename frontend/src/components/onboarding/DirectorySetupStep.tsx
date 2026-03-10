@@ -44,7 +44,6 @@ export function DirectorySetupStep({
       }
     } catch (err) {
       setError('Failed to select directory. Please try again.');
-      console.error('Directory selection error:', err);
     } finally {
       setIsSelecting(false);
     }

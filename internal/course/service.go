@@ -12,22 +12,24 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"coursefin/internal/database"
 	"coursefin/internal/sqlc"
 )
 
 // Service handles course business logic
 type Service struct {
-	queries sqlc.Querier
+	db *database.DB
 }
 
 // NewService creates a new course service
-func NewService(queries sqlc.Querier) *Service {
+func NewService(db *database.DB) *Service {
 	return &Service{
-		queries: queries,
+		db: db,
 	}
 }
 
@@ -127,125 +129,136 @@ func (s *Service) ImportCourse(ctx context.Context, coursePath string, coursesDi
 	}
 	int64Ptr := func(i int64) *int64 { return &i }
 
-	// Check if course already exists (using absolute path)
-	existingCourse, err := s.queries.GetCourseByPath(ctx, coursePath)
-	if err == nil && existingCourse != nil {
-		// ── Smart Sync: course exists, add missing sections/lectures ──
-		return s.syncExistingCourse(ctx, existingCourse, metadata, int64Ptr)
-	}
-
-	// ── Fresh Import: course doesn't exist yet ──
-
-	// Calculate totals
-	var totalDuration int64
-	var totalLectures int
-	for _, section := range metadata.Sections {
-		for _, lecture := range section.Lectures {
-			totalDuration += lecture.Duration
-			totalLectures++
+	var result *ImportCourseResult
+	err = s.db.WithTx(func(queries *sqlc.Queries) error {
+		// Check if course already exists (using absolute path)
+		existingCourse, err := queries.GetCourseByPath(ctx, coursePath)
+		if err == nil && existingCourse != nil {
+			// ── Smart Sync: course exists, add missing sections/lectures ──
+			result, err = s.syncExistingCourse(ctx, queries, existingCourse, metadata, int64Ptr)
+			return err
 		}
-	}
 
-	slug := generateSlug(metadata.Title)
+		// ── Fresh Import: course doesn't exist yet ──
 
-	course, err := s.queries.CreateCourse(ctx, sqlc.CreateCourseParams{
-		Title:          metadata.Title,
-		Slug:           slug,
-		Description:    nil,
-		InstructorName: nil,
-		ThumbnailUrl:   strPtr(metadata.ThumbnailURL),
-		ThumbnailPath:  nil,
-		CoursePath:     coursePath,
-		TotalDuration:  int64Ptr(totalDuration),
-		TotalLectures:  int64Ptr(int64(totalLectures)),
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to create course: %w", err)
-	}
+		// Calculate totals
+		var totalDuration int64
+		var totalLectures int
+		for _, section := range metadata.Sections {
+			for _, lecture := range section.Lectures {
+				totalDuration += lecture.Duration
+				totalLectures++
+			}
+		}
 
-	// Import all sections and lectures
-	for _, sectionMeta := range metadata.Sections {
-		section, err := s.queries.CreateSection(ctx, sqlc.CreateSectionParams{
-			CourseID:      course.ID,
-			Title:         sectionMeta.Title,
-			SectionNumber: int64(sectionMeta.SectionNumber),
-			Description:   nil,
+		slug := generateSlug(metadata.Title)
+
+		course, err := queries.CreateCourse(ctx, sqlc.CreateCourseParams{
+			Title:          metadata.Title,
+			Slug:           slug,
+			Description:    nil,
+			InstructorName: nil,
+			ThumbnailUrl:   strPtr(metadata.ThumbnailURL),
+			ThumbnailPath:  nil,
+			CoursePath:     coursePath,
+			TotalDuration:  int64Ptr(totalDuration),
+			TotalLectures:  int64Ptr(int64(totalLectures)),
 		})
 		if err != nil {
-			return nil, fmt.Errorf("failed to create section %s: %w", sectionMeta.Title, err)
+			return fmt.Errorf("failed to create course: %w", err)
 		}
 
-		for _, lectureMeta := range sectionMeta.Lectures {
-			isQuiz := false
-			isDownloadable := true
-			hasSubtitles := len(lectureMeta.SubtitlePaths) > 0
-			originalFilename := filepath.Base(lectureMeta.VideoPath)
-
-			lecture, err := s.queries.CreateLecture(ctx, sqlc.CreateLectureParams{
-				SectionID:        section.ID,
-				CourseID:         course.ID,
-				Title:            lectureMeta.Title,
-				LectureNumber:    int64(lectureMeta.LectureNumber),
-				LectureType:      lectureMeta.LectureType,
-				IsQuiz:           &isQuiz,
-				IsDownloadable:   &isDownloadable,
-				FilePath:         lectureMeta.VideoPath,
-				OriginalFilename: &originalFilename,
-				ResourcesPath:    nil,
-				FileSize:         nil,
-				Duration:         int64Ptr(lectureMeta.Duration),
-				VideoCodec:       nil,
-				Resolution:       nil,
-				HasSubtitles:     &hasSubtitles,
+		// Import all sections and lectures
+		for _, sectionMeta := range metadata.Sections {
+			section, err := queries.CreateSection(ctx, sqlc.CreateSectionParams{
+				CourseID:      course.ID,
+				Title:         sectionMeta.Title,
+				SectionNumber: int64(sectionMeta.SectionNumber),
+				Description:   nil,
 			})
 			if err != nil {
-				return nil, fmt.Errorf("failed to create lecture %s: %w", lectureMeta.Title, err)
+				return fmt.Errorf("failed to create section %s: %w", sectionMeta.Title, err)
 			}
 
-			for _, subtitlePath := range lectureMeta.SubtitlePaths {
-				language := detectSubtitleLanguage(subtitlePath)
-				format := detectSubtitleFormat(subtitlePath)
-				subtitle, err := s.queries.CreateSubtitle(ctx, sqlc.CreateSubtitleParams{
-					LectureID: lecture.ID,
-					Language:  language,
-					Format:    format,
-					FilePath:  subtitlePath,
+			for _, lectureMeta := range sectionMeta.Lectures {
+				isQuiz := false
+				isDownloadable := true
+				hasSubtitles := len(lectureMeta.SubtitlePaths) > 0
+				originalFilename := filepath.Base(lectureMeta.VideoPath)
+
+				lecture, err := queries.CreateLecture(ctx, sqlc.CreateLectureParams{
+					SectionID:        section.ID,
+					CourseID:         course.ID,
+					Title:            lectureMeta.Title,
+					LectureNumber:    int64(lectureMeta.LectureNumber),
+					LectureType:      lectureMeta.LectureType,
+					IsQuiz:           &isQuiz,
+					IsDownloadable:   &isDownloadable,
+					FilePath:         lectureMeta.VideoPath,
+					OriginalFilename: &originalFilename,
+					ResourcesPath:    nil,
+					FileSize:         nil,
+					Duration:         int64Ptr(lectureMeta.Duration),
+					VideoCodec:       nil,
+					Resolution:       nil,
+					HasSubtitles:     &hasSubtitles,
 				})
 				if err != nil {
-					// Check if it's a UNIQUE constraint error (duplicate subtitle)
-					if strings.Contains(err.Error(), "UNIQUE constraint failed") ||
-						strings.Contains(err.Error(), "constraint failed") {
-						fmt.Printf("[Import] Warning: Duplicate subtitle skipped - %s (%s, %s)\n",
-							filepath.Base(subtitlePath), language, format)
+					return fmt.Errorf("failed to create lecture %s: %w", lectureMeta.Title, err)
+				}
+
+				for _, subtitlePath := range lectureMeta.SubtitlePaths {
+					language := detectSubtitleLanguage(subtitlePath)
+					format := detectSubtitleFormat(subtitlePath)
+					subtitle, err := queries.CreateSubtitle(ctx, sqlc.CreateSubtitleParams{
+						LectureID: lecture.ID,
+						Language:  language,
+						Format:    format,
+						FilePath:  subtitlePath,
+					})
+					if err != nil {
+						// Check if it's a UNIQUE constraint error (duplicate subtitle)
+						if strings.Contains(err.Error(), "UNIQUE constraint failed") ||
+							strings.Contains(err.Error(), "constraint failed") {
+							slog.Warn("import: duplicate subtitle skipped",
+								"file", filepath.Base(subtitlePath), "language", language, "format", format)
+							continue
+						}
+						// For other errors, log warning but don't fail the entire import
+						slog.Warn("import: failed to create subtitle", "path", subtitlePath, "error", err)
 						continue
 					}
-					// For other errors, log warning but don't fail the entire import
-					fmt.Printf("[Import] Warning: Failed to create subtitle %s: %v\n",
-						subtitlePath, err)
-					continue
-				}
-				if subtitle != nil {
-					fmt.Printf("[Import] Added subtitle: %s (%s, %s)\n",
-						filepath.Base(subtitlePath), language, format)
+					if subtitle != nil {
+						slog.Info("import: added subtitle",
+							"file", filepath.Base(subtitlePath), "language", language, "format", format)
+					}
 				}
 			}
 		}
+
+		result = &ImportCourseResult{
+			CourseID:      course.ID,
+			Title:         course.Title,
+			TotalSections: len(metadata.Sections),
+			TotalLectures: totalLectures,
+			TotalDuration: totalDuration,
+			AlreadyExists: false,
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 
-	return &ImportCourseResult{
-		CourseID:      course.ID,
-		Title:         course.Title,
-		TotalSections: len(metadata.Sections),
-		TotalLectures: totalLectures,
-		TotalDuration: totalDuration,
-		AlreadyExists: false,
-	}, nil
+	return result, nil
 }
 
 // syncExistingCourse re-scans an existing course and inserts any missing
 // sections/lectures without touching existing data (preserves user progress).
 func (s *Service) syncExistingCourse(
 	ctx context.Context,
+	queries sqlc.Querier,
 	course *sqlc.Course,
 	metadata *CourseMetadata,
 	int64Ptr func(int64) *int64,
@@ -254,13 +267,13 @@ func (s *Service) syncExistingCourse(
 
 	for _, sectionMeta := range metadata.Sections {
 		// Find or create section
-		section, err := s.queries.GetSectionByCourseAndNumber(ctx, sqlc.GetSectionByCourseAndNumberParams{
+		section, err := queries.GetSectionByCourseAndNumber(ctx, sqlc.GetSectionByCourseAndNumberParams{
 			CourseID:      course.ID,
 			SectionNumber: int64(sectionMeta.SectionNumber),
 		})
 		if err != nil {
 			// Section doesn't exist — create it
-			section, err = s.queries.CreateSection(ctx, sqlc.CreateSectionParams{
+			section, err = queries.CreateSection(ctx, sqlc.CreateSectionParams{
 				CourseID:      course.ID,
 				Title:         sectionMeta.Title,
 				SectionNumber: int64(sectionMeta.SectionNumber),
@@ -269,13 +282,13 @@ func (s *Service) syncExistingCourse(
 			if err != nil {
 				return nil, fmt.Errorf("failed to create section %s: %w", sectionMeta.Title, err)
 			}
-			fmt.Printf("[Sync] Created new section: %s\n", sectionMeta.Title)
+			slog.Info("sync: created new section", "title", sectionMeta.Title)
 		}
 
 		// Check each lecture
 		for _, lectureMeta := range sectionMeta.Lectures {
 			// Check if lecture already exists (by file_path + course_id)
-			_, err := s.queries.GetLectureByFilePath(ctx, sqlc.GetLectureByFilePathParams{
+			_, err := queries.GetLectureByFilePath(ctx, sqlc.GetLectureByFilePathParams{
 				CourseID: course.ID,
 				FilePath: lectureMeta.VideoPath,
 			})
@@ -290,7 +303,7 @@ func (s *Service) syncExistingCourse(
 			hasSubtitles := len(lectureMeta.SubtitlePaths) > 0
 			originalFilename := filepath.Base(lectureMeta.VideoPath)
 
-			lecture, err := s.queries.CreateLecture(ctx, sqlc.CreateLectureParams{
+			lecture, err := queries.CreateLecture(ctx, sqlc.CreateLectureParams{
 				SectionID:        section.ID,
 				CourseID:         course.ID,
 				Title:            lectureMeta.Title,
@@ -311,14 +324,14 @@ func (s *Service) syncExistingCourse(
 				return nil, fmt.Errorf("failed to create lecture %s: %w", lectureMeta.Title, err)
 			}
 
-			fmt.Printf("[Sync] Added lecture: %s (type: %s)\n", lectureMeta.Title, lectureMeta.LectureType)
+			slog.Info("sync: added lecture", "title", lectureMeta.Title, "type", lectureMeta.LectureType)
 			addedLectures++
 
 			// Import subtitles for new lectures
 			for _, subtitlePath := range lectureMeta.SubtitlePaths {
 				language := detectSubtitleLanguage(subtitlePath)
 				format := detectSubtitleFormat(subtitlePath)
-				subtitle, err := s.queries.CreateSubtitle(ctx, sqlc.CreateSubtitleParams{
+				subtitle, err := queries.CreateSubtitle(ctx, sqlc.CreateSubtitleParams{
 					LectureID: lecture.ID,
 					Language:  language,
 					Format:    format,
@@ -328,18 +341,17 @@ func (s *Service) syncExistingCourse(
 					// Check if it's a UNIQUE constraint error (duplicate subtitle)
 					if strings.Contains(err.Error(), "UNIQUE constraint failed") ||
 						strings.Contains(err.Error(), "constraint failed") {
-						fmt.Printf("[Sync] Warning: Duplicate subtitle skipped - %s (%s, %s)\n",
-							filepath.Base(subtitlePath), language, format)
+						slog.Warn("sync: duplicate subtitle skipped",
+							"file", filepath.Base(subtitlePath), "language", language, "format", format)
 						continue
 					}
 					// For other errors, log warning but don't fail
-					fmt.Printf("[Sync] Warning: Failed to create subtitle %s: %v\n",
-						subtitlePath, err)
+					slog.Warn("sync: failed to create subtitle", "path", subtitlePath, "error", err)
 					continue
 				}
 				if subtitle != nil {
-					fmt.Printf("[Sync] Added subtitle: %s (%s, %s)\n",
-						filepath.Base(subtitlePath), language, format)
+					slog.Info("sync: added subtitle",
+						"file", filepath.Base(subtitlePath), "language", language, "format", format)
 				}
 			}
 		}
@@ -354,13 +366,13 @@ func (s *Service) syncExistingCourse(
 			totalLectures++
 		}
 	}
-	_ = s.queries.UpdateCourseStats(ctx, sqlc.UpdateCourseStatsParams{
+	_ = queries.UpdateCourseStats(ctx, sqlc.UpdateCourseStatsParams{
 		TotalDuration: int64Ptr(totalDuration),
 		TotalLectures: int64Ptr(int64(totalLectures)),
 		ID:            course.ID,
 	})
 
-	fmt.Printf("[Sync] Course sync complete: %s (%d new lectures added)\n", course.Title, addedLectures)
+	slog.Info("sync: course sync complete", "title", course.Title, "newLectures", addedLectures)
 
 	return &ImportCourseResult{
 		CourseID:      course.ID,
@@ -375,7 +387,7 @@ func (s *Service) syncExistingCourse(
 // GetAllCourses retrieves all courses (for library view)
 func (s *Service) GetAllCourses(ctx context.Context) ([]*sqlc.Course, error) {
 	// Get all courses (no pagination for Sprint 1)
-	courses, err := s.queries.ListCourses(ctx, sqlc.ListCoursesParams{
+	courses, err := s.db.Queries().ListCourses(ctx, sqlc.ListCoursesParams{
 		Limit:  1000, // Reasonable limit
 		Offset: 0,
 	})
@@ -396,12 +408,12 @@ func (s *Service) GetAllCourses(ctx context.Context) ([]*sqlc.Course, error) {
 // The frontend uses this with iframe srcdoc= to render HTML inline, avoiding
 // cross-origin issues between the wails:// scheme and http://127.0.0.1.
 func (s *Service) GetHtmlLectureContent(ctx context.Context, lectureID int64) (string, error) {
-	lecture, err := s.queries.GetLectureByID(ctx, lectureID)
+	lecture, err := s.db.Queries().GetLectureByID(ctx, lectureID)
 	if err != nil {
 		return "", fmt.Errorf("lecture not found: %w", err)
 	}
 
-	course, err := s.queries.GetCourseByID(ctx, lecture.CourseID)
+	course, err := s.db.Queries().GetCourseByID(ctx, lecture.CourseID)
 	if err != nil {
 		return "", fmt.Errorf("course not found: %w", err)
 	}
@@ -417,7 +429,7 @@ func (s *Service) GetHtmlLectureContent(ctx context.Context, lectureID int64) (s
 
 // GetCourseByID retrieves a single course by ID
 func (s *Service) GetCourseByID(ctx context.Context, id int64) (*sqlc.Course, error) {
-	course, err := s.queries.GetCourseByID(ctx, id)
+	course, err := s.db.Queries().GetCourseByID(ctx, id)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, fmt.Errorf("course not found: %d", id)
@@ -513,7 +525,7 @@ type SectionWithLectures struct {
 // GetCourseWithSections retrieves a course with all sections and lectures
 func (s *Service) GetCourseWithSections(ctx context.Context, id int64) (*CourseWithSections, error) {
 	// Get the course
-	course, err := s.queries.GetCourseByID(ctx, id)
+	course, err := s.db.Queries().GetCourseByID(ctx, id)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, fmt.Errorf("course not found: %d", id)
@@ -522,7 +534,7 @@ func (s *Service) GetCourseWithSections(ctx context.Context, id int64) (*CourseW
 	}
 
 	// Get all sections for the course
-	sections, err := s.queries.ListSectionsByCourse(ctx, id)
+	sections, err := s.db.Queries().ListSectionsByCourse(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get sections: %w", err)
 	}
@@ -531,7 +543,7 @@ func (s *Service) GetCourseWithSections(ctx context.Context, id int64) (*CourseW
 	sectionsWithLectures := make([]*SectionWithLectures, len(sections))
 	for i, section := range sections {
 		// Get lectures for this section
-		lectures, err := s.queries.ListLecturesWithProgressBySection(ctx, section.ID)
+		lectures, err := s.db.Queries().ListLecturesWithProgressBySection(ctx, section.ID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get lectures for section %d: %w", section.ID, err)
 		}

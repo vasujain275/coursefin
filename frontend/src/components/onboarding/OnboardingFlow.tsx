@@ -8,6 +8,7 @@
 
 import { useOnboardingStore } from '@/stores/onboardingStore';
 import { useSettingsStore } from '@/stores/settingsStore';
+import { useShallow } from 'zustand/react/shallow';
 import { DirectorySetupStep } from './DirectorySetupStep';
 import { LibraryScanStep } from './LibraryScanStep';
 import { WelcomeStep } from './WelcomeStep';
@@ -26,7 +27,12 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
     completeStep,
   } = useOnboardingStore();
 
-  const { setCoursesDirectory: persistCoursesDirectory, completeOnboarding } = useSettingsStore();
+  const { setCoursesDirectory: persistCoursesDirectory, completeOnboarding } = useSettingsStore(
+    useShallow(state => ({
+      setCoursesDirectory: state.setCoursesDirectory,
+      completeOnboarding: state.completeOnboarding,
+    }))
+  );
 
   const handleDirectoryChange = async (path: string) => {
     setCoursesDirectory(path);

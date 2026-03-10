@@ -3,9 +3,12 @@ package player
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
+	"log/slog"
 	"net/url"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -153,9 +156,16 @@ func (s *Service) UpdatePlaybackProgress(ctx context.Context, lectureID int64, p
 		return fmt.Errorf("failed to get lecture: %w", err)
 	}
 
-	// Calculate if lecture should be marked as complete
-	// Default threshold is 90% (can be made configurable later)
+	// Load completion threshold from settings DB, fall back to 0.90 if missing or invalid
 	completionThreshold := 0.90
+	if threshStr, err := s.db.Queries().GetSettingValue(ctx, "auto_mark_complete_threshold"); err == nil {
+		if parsed, parseErr := strconv.ParseFloat(threshStr, 64); parseErr == nil {
+			completionThreshold = parsed
+		}
+	} else if err != sql.ErrNoRows {
+		// Log unexpected DB errors but continue with default
+		slog.Warn("failed to read completion_threshold setting", "error", err)
+	}
 	completed := (position / duration) >= completionThreshold
 
 	// Prepare progress data
@@ -285,12 +295,18 @@ func (s *Service) GetLectureInfo(ctx context.Context, lectureID int64) (*Lecture
 	nextID, _ := s.getNextLectureID(ctx, *lecture)
 	prevID, _ := s.getPreviousLectureID(ctx, *lecture)
 
+	// Safely dereference duration (nullable int64)
+	var lectureDuration int64
+	if lecture.Duration != nil {
+		lectureDuration = *lecture.Duration
+	}
+
 	info := &LectureInfo{
 		LectureID:   lectureID,
 		Title:       lecture.Title,
 		VideoURL:    videoURL,
 		SubtitleURL: subtitleURL,
-		Duration:    *lecture.Duration,
+		Duration:    lectureDuration,
 		ResumeAt:    resumeAt,
 		HasNext:     nextID != nil,
 		HasPrevious: prevID != nil,
@@ -302,73 +318,39 @@ func (s *Service) GetLectureInfo(ctx context.Context, lectureID int64) (*Lecture
 }
 
 // getNextLectureID finds the next lecture in sequence
+// Single query replaces section-by-section navigation
 func (s *Service) getNextLectureID(ctx context.Context, currentLecture sqlc.Lecture) (*int64, error) {
-	// Get all lectures in the same section, ordered by lecture number
-	lectures, err := s.db.Queries().ListLecturesBySection(ctx, currentLecture.SectionID)
+	nextLecture, err := s.db.Queries().GetNextLecture(ctx, sqlc.GetNextLectureParams{
+		CourseID:      currentLecture.CourseID,
+		SectionID:     currentLecture.SectionID,
+		LectureNumber: currentLecture.LectureNumber,
+		SectionID_2:   currentLecture.SectionID,
+	})
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
 		return nil, err
 	}
 
-	// Find current lecture and return next one
-	for i, lecture := range lectures {
-		if lecture.ID == currentLecture.ID && i+1 < len(lectures) {
-			nextID := lectures[i+1].ID
-			return &nextID, nil
-		}
-	}
-
-	// No next lecture in this section, try first lecture of next section
-	sections, err := s.db.Queries().ListSectionsByCourse(ctx, currentLecture.CourseID)
-	if err != nil {
-		return nil, err
-	}
-
-	// Find current section and get next section
-	for i, section := range sections {
-		if section.ID == currentLecture.SectionID && i+1 < len(sections) {
-			nextSectionLectures, err := s.db.Queries().ListLecturesBySection(ctx, sections[i+1].ID)
-			if err == nil && len(nextSectionLectures) > 0 {
-				nextID := nextSectionLectures[0].ID
-				return &nextID, nil
-			}
-		}
-	}
-
-	return nil, nil // No next lecture
+	return &nextLecture.ID, nil
 }
 
 // getPreviousLectureID finds the previous lecture in sequence
+// Single query replaces section-by-section navigation
 func (s *Service) getPreviousLectureID(ctx context.Context, currentLecture sqlc.Lecture) (*int64, error) {
-	// Get all lectures in the same section, ordered by lecture number
-	lectures, err := s.db.Queries().ListLecturesBySection(ctx, currentLecture.SectionID)
+	prevLecture, err := s.db.Queries().GetPreviousLecture(ctx, sqlc.GetPreviousLectureParams{
+		CourseID:      currentLecture.CourseID,
+		SectionID:     currentLecture.SectionID,
+		LectureNumber: currentLecture.LectureNumber,
+		SectionID_2:   currentLecture.SectionID,
+	})
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
 		return nil, err
 	}
 
-	// Find current lecture and return previous one
-	for i, lecture := range lectures {
-		if lecture.ID == currentLecture.ID && i > 0 {
-			prevID := lectures[i-1].ID
-			return &prevID, nil
-		}
-	}
-
-	// No previous lecture in this section, try last lecture of previous section
-	sections, err := s.db.Queries().ListSectionsByCourse(ctx, currentLecture.CourseID)
-	if err != nil {
-		return nil, err
-	}
-
-	// Find current section and get previous section
-	for i, section := range sections {
-		if section.ID == currentLecture.SectionID && i > 0 {
-			prevSectionLectures, err := s.db.Queries().ListLecturesBySection(ctx, sections[i-1].ID)
-			if err == nil && len(prevSectionLectures) > 0 {
-				prevID := prevSectionLectures[len(prevSectionLectures)-1].ID
-				return &prevID, nil
-			}
-		}
-	}
-
-	return nil, nil // No previous lecture
+	return &prevLecture.ID, nil
 }
