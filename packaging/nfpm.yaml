@@ -21,29 +21,29 @@ vendor: Vasu Jain
 homepage: https://github.com/vasujain275/coursefin
 license: MIT
 
-# Runtime dependencies — the package manager on the user's system installs these.
-# deb and rpm blocks below override this per-format where package names differ.
-depends:
-  - libwebkit2gtk-4.0-37 | libwebkit2gtk-4.1-0
-  - libgtk-3-0
-
-# Format-specific overrides
 overrides:
   deb:
     depends:
-      - libwebkit2gtk-4.0-37 | libwebkit2gtk-4.1-0
-      - libgtk-3-0
-      - libglib2.0-0
-    recommends:
+      - libwebkit2gtk-4.1-0
+      - libgtk-3-0t64 | libgtk-3-0
+      - libglib2.0-0t64 | libglib2.0-0
+      - gstreamer1.0-plugins-base
       - gstreamer1.0-plugins-good
+      - gstreamer1.0-libav
+    recommends:
       - gstreamer1.0-plugins-bad
+      - gstreamer1.0-plugins-ugly
   rpm:
     depends:
-      - webkit2gtk4.0 >= 2.36
+      - webkit2gtk4.1
       - gtk3
       - glib2
-    recommends:
+      - gstreamer1-plugins-base
       - gstreamer1-plugins-good
+      - gstreamer1-plugin-libav
+    recommends:
+      - gstreamer1-plugins-bad-free
+      - gstreamer1-plugins-ugly-free
 
 contents:
   # The main binary
