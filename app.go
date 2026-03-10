@@ -10,7 +10,6 @@ import (
 	"coursefin/internal/course"
 	"coursefin/internal/database"
 	"coursefin/internal/player"
-	"coursefin/internal/progress"
 	"coursefin/internal/settings"
 	"coursefin/internal/sqlc"
 
@@ -21,7 +20,6 @@ import (
 type App struct {
 	ctx          context.Context
 	db           *database.DB
-	tracker      *progress.Tracker
 	playerSvc    *player.Service
 	videoHandler *player.VideoHandler
 	videoServer  *player.VideoServer
@@ -68,19 +66,6 @@ func (a *App) startup(ctx context.Context) {
 	a.db = db
 	fmt.Printf("Database initialized at: %s\n", db.DBPath())
 
-	// Initialize progress tracker
-	a.tracker = progress.NewTracker(db)
-	fmt.Println("Progress tracker initialized")
-
-	// Load completion threshold from settings
-	threshold, err := a.db.Queries().GetAutoCompleteThreshold(ctx)
-	if err == nil {
-		// Convert string to float64
-		var thresholdFloat float64
-		fmt.Sscanf(threshold, "%f", &thresholdFloat)
-		a.tracker.SetCompletionThreshold(thresholdFloat)
-	}
-
 	// Get courses directory from settings
 	coursesDir, err := a.db.Queries().GetCoursesDirectory(ctx)
 	if err != nil || coursesDir == "" {
@@ -120,11 +105,6 @@ func (a *App) startup(ctx context.Context) {
 
 // shutdown is called when the app is closing
 func (a *App) shutdown(ctx context.Context) {
-	if a.tracker != nil {
-		fmt.Println("Stopping progress tracking...")
-		a.tracker.StopTracking()
-	}
-
 	if a.videoServer != nil {
 		fmt.Println("Stopping video server...")
 		a.videoServer.Stop()
@@ -218,44 +198,12 @@ func (a *App) GetAppSettings() (map[string]string, error) {
 // Progress Tracking Methods
 // =====================================
 
-// StartTrackingProgress begins tracking playback progress for a lecture
-func (a *App) StartTrackingProgress(lectureID int64) error {
-	if a.tracker == nil {
-		return fmt.Errorf("progress tracker not initialized")
-	}
-	return a.tracker.StartTracking(a.ctx, lectureID)
-}
-
-// StopTrackingProgress stops tracking the current lecture
-func (a *App) StopTrackingProgress() error {
-	if a.tracker == nil {
-		return fmt.Errorf("progress tracker not initialized")
-	}
-	return a.tracker.StopTracking()
-}
-
-// GetResumePosition returns the last playback position for a lecture
-func (a *App) GetResumePosition(lectureID int64) (float64, error) {
-	if a.tracker == nil {
-		return 0, fmt.Errorf("progress tracker not initialized")
-	}
-	return a.tracker.GetResumePosition(a.ctx, lectureID)
-}
-
 // GetLectureProgress returns progress information for a specific lecture
 func (a *App) GetLectureProgress(lectureID int64) (*sqlc.Progress, error) {
 	if a.db == nil {
 		return nil, fmt.Errorf("database not initialized")
 	}
 	return a.db.Queries().GetProgressByLecture(a.ctx, lectureID)
-}
-
-// IsTrackingProgress returns whether progress tracking is currently active
-func (a *App) IsTrackingProgress() bool {
-	if a.tracker == nil {
-		return false
-	}
-	return a.tracker.IsTracking()
 }
 
 // =====================================
