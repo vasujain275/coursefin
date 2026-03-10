@@ -6,6 +6,7 @@ export function useProgressSaver(
   getVideo: () => HTMLVideoElement | null,
 ) {
   const progressIntervalRef = useRef<number | null>(null);
+  const lastSavedPositionRef = useRef<number>(-1);
 
   useEffect(() => {
     let video: HTMLVideoElement | null = null;
@@ -22,7 +23,11 @@ export function useProgressSaver(
       const el = getVideo();
       if (!el || !Number.isFinite(el.duration) || el.duration <= 0) return;
 
-      await UpdateVideoProgress(lectureId, el.currentTime, el.duration).catch(() => undefined);
+      const currentTime = el.currentTime;
+      if (Math.abs(currentTime - lastSavedPositionRef.current) <= 1) return;
+
+      await UpdateVideoProgress(lectureId, currentTime, el.duration).catch(() => undefined);
+      lastSavedPositionRef.current = currentTime;
     };
 
     const handlePlay = () => {
@@ -73,6 +78,7 @@ export function useProgressSaver(
         window.clearInterval(pollId);
         void saveProgress();
         clearProgressInterval();
+        lastSavedPositionRef.current = -1;
         if (video) {
           video.removeEventListener('play', handlePlay);
           video.removeEventListener('pause', handlePause);
@@ -84,6 +90,7 @@ export function useProgressSaver(
     return () => {
       void saveProgress();
       clearProgressInterval();
+      lastSavedPositionRef.current = -1;
       if (video) {
         video.removeEventListener('play', handlePlay);
         video.removeEventListener('pause', handlePause);
