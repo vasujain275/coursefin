@@ -15,7 +15,7 @@ import { EventsOff, EventsOn } from '@/wailsjs/runtime/runtime';
 import { usePlayerStore } from '@/stores/playerStore';
 import { useShallow } from 'zustand/react/shallow';
 import { AlertCircle, ArrowLeft, FileText, PanelRightClose, PanelRightOpen } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { HtmlLectureViewer } from './HtmlLectureViewer';
 import { LectureList } from './LectureList';
 import { VideoPlayer } from './VideoPlayer';
@@ -134,6 +134,42 @@ export function PlayerView({ courseId, initialLectureId, onBack }: PlayerViewPro
 
   const [showSidebar, setShowSidebar] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
+
+  const [sidebarWidth, setSidebarWidth] = useState(() => parseInt(localStorage.getItem('sidebarWidth') ?? '384', 10));
+  const isDraggingRef = useRef(false);
+  const sidebarWidthRef = useRef(sidebarWidth);
+
+  useEffect(() => {
+    sidebarWidthRef.current = sidebarWidth;
+  }, [sidebarWidth]);
+
+  const handleDragStart = useCallback(() => {
+    isDraggingRef.current = true;
+  }, []);
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDraggingRef.current) return;
+      let newWidth = window.innerWidth - e.clientX;
+      if (newWidth < 200) newWidth = 200;
+      if (newWidth > 500) newWidth = 500;
+      setSidebarWidth(newWidth);
+    };
+
+    const handleMouseUp = () => {
+      if (isDraggingRef.current) {
+        isDraggingRef.current = false;
+        localStorage.setItem('sidebarWidth', String(sidebarWidthRef.current));
+      }
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, []);
 
   useEffect(() => {
     EventsOn('window:fullscreen', (isFs: boolean) => setIsFullscreen(isFs));
@@ -303,14 +339,23 @@ export function PlayerView({ courseId, initialLectureId, onBack }: PlayerViewPro
       </div>
 
       {!isFullscreen && showSidebar && course.sections && (
-        <div className="w-96 flex-shrink-0 border-l border-border/50">
-          <LectureList
-            sections={course.sections}
-            currentLectureId={currentLecture.id}
-            onLectureSelect={handleLectureSelect}
-            onClose={() => setShowSidebar(false)}
+        <>
+          <div
+            className="w-1 cursor-col-resize bg-border/40 hover:bg-primary/50 active:bg-primary transition-colors flex-shrink-0 select-none"
+            onMouseDown={handleDragStart}
           />
-        </div>
+          <div 
+            className="flex-shrink-0 border-l border-border/50"
+            style={{ width: sidebarWidth }}
+          >
+            <LectureList
+              sections={course.sections}
+              currentLectureId={currentLecture.id}
+              onLectureSelect={handleLectureSelect}
+              onClose={() => setShowSidebar(false)}
+            />
+          </div>
+        </>
       )}
     </div>
   );
