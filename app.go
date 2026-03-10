@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"os/exec"
 	"strings"
 
 	"coursefin/internal/course"
@@ -375,4 +376,44 @@ func (a *App) ToggleWindowFullscreen() {
 // IsWindowFullscreen returns the current window fullscreen state
 func (a *App) IsWindowFullscreen() bool {
 	return runtime.WindowIsFullscreen(a.ctx)
+}
+
+// =====================================
+// Course Context Menu Actions
+// =====================================
+
+// DeleteCourse removes a course and all its data from the library database.
+func (a *App) DeleteCourse(courseID int64) error {
+	if a.db == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	return a.db.Queries().DeleteCourse(a.ctx, courseID)
+}
+
+// OpenCourseFolder opens the course's folder in the system file manager.
+func (a *App) OpenCourseFolder(courseID int64) error {
+	if a.db == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	c, err := a.db.Queries().GetCourseByID(a.ctx, courseID)
+	if err != nil {
+		return fmt.Errorf("course not found: %w", err)
+	}
+	return exec.Command("xdg-open", c.CoursePath).Start()
+}
+
+// MarkLectureWatched marks a lecture as completed in the progress table.
+func (a *App) MarkLectureWatched(lectureID int64) error {
+	if a.db == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	return a.db.Queries().MarkLectureCompleted(a.ctx, lectureID)
+}
+
+// MarkLectureUnwatched marks a lecture as incomplete in the progress table.
+func (a *App) MarkLectureUnwatched(lectureID int64) error {
+	if a.db == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	return a.db.Queries().MarkLectureIncomplete(a.ctx, lectureID)
 }

@@ -13,7 +13,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import type { Course } from '@/types';
 import { useCourseStore } from '@/stores/courseStore';
 import { useShallow } from 'zustand/react/shallow';
-import { ScanLibrary } from '@/wailsjs/go/main/App';
+import { ScanLibrary, DeleteCourse, OpenCourseFolder } from '@/wailsjs/go/main/App';
 import { AlertCircle, RefreshCw } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
@@ -96,6 +96,28 @@ export function LandingPage({ onCourseSelect, onSettings }: LandingPageProps) {
     onCourseSelect(course.id);
   };
 
+  const handleCourseRemove = async (course: Course) => {
+    try {
+      await DeleteCourse(course.id);
+      await refreshCourses();
+      toast.success('Course removed', { description: course.title });
+    } catch (err) {
+      toast.error('Failed to remove course', {
+        description: err instanceof Error ? err.message : 'Unknown error',
+      });
+    }
+  };
+
+  const handleOpenCourseFolder = async (course: Course) => {
+    try {
+      await OpenCourseFolder(course.id);
+    } catch (err) {
+      toast.error('Failed to open folder', {
+        description: err instanceof Error ? err.message : 'Unknown error',
+      });
+    }
+  };
+
   return (
     <AppLayout
       onSearch={handleSearch}
@@ -171,6 +193,8 @@ export function LandingPage({ onCourseSelect, onSettings }: LandingPageProps) {
           <CourseGrid
             courses={filteredCourses}
             onCourseClick={handleCourseClick}
+            onCourseRemove={course => void handleCourseRemove(course)}
+            onOpenCourseFolder={course => void handleOpenCourseFolder(course)}
             emptyMessage="No courses match your search"
             emptyActionLabel="Clear Search"
             emptyAction={() => setSearchQuery('')}

@@ -353,6 +353,7 @@ export function PlayerView({ courseId, initialLectureId, onBack }: PlayerViewPro
               currentLectureId={currentLecture.id}
               onLectureSelect={handleLectureSelect}
               onClose={() => setShowSidebar(false)}
+              onLectureUpdated={() => void loadCourse(courseId)}
             />
           </div>
         </>

@@ -1,5 +1,11 @@
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from '@/components/ui/context-menu';
 import { Progress } from '@/components/ui/progress';
 import type { Course } from '@/types';
 import { BookOpen, CheckCircle2, ClipboardList, Clock, PlayCircle } from 'lucide-react';
@@ -7,6 +13,8 @@ import { BookOpen, CheckCircle2, ClipboardList, Clock, PlayCircle } from 'lucide
 interface CourseCardProps {
   course: Course;
   onClick?: () => void;
+  onRemove?: () => void;
+  onOpenFolder?: () => void;
 }
 
 // Format a relative time string like "2 days ago", "just now", etc.
@@ -25,7 +33,7 @@ function formatRelativeTime(isoDate: string): string {
   return `${months}mo ago`;
 }
 
-export function CourseCard({ course, onClick }: CourseCardProps) {
+export function CourseCard({ course, onClick, onRemove, onOpenFolder }: CourseCardProps) {
   // Prefer sections-derived counts when sections are loaded (PlayerView),
   // otherwise use the aggregate progress stats from GetAllCourses.
   const totalLectures = course.sections
@@ -64,10 +72,12 @@ export function CourseCard({ course, onClick }: CourseCardProps) {
   };
 
   return (
-    <Card
-      className="group cursor-pointer overflow-hidden transition-all duration-300 hover:scale-[1.02] hover:shadow-xl hover:shadow-primary/5 border-border/50 hover:border-primary/30"
-      onClick={onClick}
-    >
+    <ContextMenu>
+      <ContextMenuTrigger asChild>
+        <Card
+          className="group cursor-pointer overflow-hidden transition-all duration-300 hover:scale-[1.02] hover:shadow-xl hover:shadow-primary/5 border-border/50 hover:border-primary/30"
+          onClick={onClick}
+        >
       {/* Thumbnail/Poster */}
       <div className="aspect-video bg-gradient-to-br from-primary/20 via-primary/10 to-accent/5 relative overflow-hidden">
         {/* Placeholder Icon */}
@@ -152,6 +162,13 @@ export function CourseCard({ course, onClick }: CourseCardProps) {
           </p>
         )}
       </CardFooter>
-    </Card>
+        </Card>
+      </ContextMenuTrigger>
+      <ContextMenuContent>
+        <ContextMenuItem onClick={onClick}>Open</ContextMenuItem>
+        <ContextMenuItem onClick={onRemove}>Remove from library</ContextMenuItem>
+        <ContextMenuItem onClick={onOpenFolder}>Open folder</ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
   );
 }
