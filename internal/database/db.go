@@ -74,6 +74,24 @@ func NewDB(dataDir string) (*DB, error) {
 	conn.SetMaxOpenConns(1) // SQLite works best with single writer
 	conn.SetMaxIdleConns(1)
 
+	// Apply additional performance pragmas via db.Exec
+	pragmas := map[string]string{
+		"journal_mode": "WAL",       // Write-Ahead Logging for better concurrency
+		"synchronous":  "NORMAL",    // Balance safety and performance
+		"cache_size":   "-32000",    // 32MB cache (negative = KB)
+		"temp_store":   "MEMORY",    // In-memory temporary storage
+		"mmap_size":    "134217728", // 128MB memory-mapped I/O
+		"foreign_keys": "ON",        // Enforce referential integrity
+	}
+
+	for pragma, value := range pragmas {
+		pragmaSQL := fmt.Sprintf("PRAGMA %s=%s;", pragma, value)
+		if _, err := conn.Exec(pragmaSQL); err != nil {
+			conn.Close()
+			return nil, fmt.Errorf("failed to set PRAGMA %s=%s: %w", pragma, value, err)
+		}
+	}
+
 	// Test connection
 	if err := conn.Ping(); err != nil {
 		conn.Close()
