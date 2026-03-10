@@ -424,7 +424,7 @@ CREATE INDEX IF NOT EXISTS idx_notes_course ON notes(course_id);  -- Course-wide
 -- Note: courses_directory will be set on first launch via file picker
 -- ============================================================================
 
-INSERT INTO app_settings (key, value) VALUES
+INSERT OR IGNORE INTO app_settings (key, value) VALUES
     ('first_run', 'true'),                            -- Indicates app needs onboarding
     ('theme', 'system'),                               -- Follow system theme by default
     ('default_playback_speed', '1.0'),                -- Normal speed
