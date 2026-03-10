@@ -32,6 +32,10 @@ function App() {
   const [currentView, setCurrentView] = useState<View>('landing');
   const [selectedCourseId, setSelectedCourseId] = useState<number | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  
+  // Transition state
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [displayedView, setDisplayedView] = useState<View>('landing');
 
   // Load settings on mount
   useEffect(() => {
@@ -46,9 +50,23 @@ function App() {
   // Determine initial view based on firstRun
   useEffect(() => {
     if (!isLoading) {
-      setCurrentView(firstRun ? 'onboarding' : 'landing');
+      const initialView = firstRun ? 'onboarding' : 'landing';
+      setCurrentView(initialView);
+      setDisplayedView(initialView);
     }
   }, [firstRun, isLoading]);
+
+  // Handle smooth view transitions
+  useEffect(() => {
+    if (currentView !== displayedView) {
+      setIsTransitioning(true);
+      const t = setTimeout(() => {
+        setDisplayedView(currentView);
+        setIsTransitioning(false);
+      }, 150);
+      return () => clearTimeout(t);
+    }
+  }, [currentView, displayedView]);
 
   const handleOnboardingComplete = () => {
     setCurrentView('landing');
@@ -60,7 +78,7 @@ function App() {
   };
 
   const handleBackToLibrary = () => {
-    setSelectedCourseId(null);
+    // Do not clear selectedCourseId immediately so the player view can fade out gracefully
     setCurrentView('landing');
   };
 
@@ -83,21 +101,29 @@ function App() {
   // Render current view
   return (
     <>
-      {currentView === 'onboarding' && (
-        <OnboardingFlow onComplete={handleOnboardingComplete} />
-      )}
-      {currentView === 'landing' && (
-        <LandingPage
-          onCourseSelect={handleCourseSelect}
-          onSettings={handleSettings}
-        />
-      )}
-      {currentView === 'player' && selectedCourseId && (
-        <PlayerView
-          courseId={selectedCourseId}
-          onBack={handleBackToLibrary}
-        />
-      )}
+      <div
+        style={{
+          opacity: isTransitioning ? 0 : 1,
+          transition: 'opacity 150ms ease-in-out',
+        }}
+        className="min-h-screen w-full"
+      >
+        {displayedView === 'onboarding' && (
+          <OnboardingFlow onComplete={handleOnboardingComplete} />
+        )}
+        {displayedView === 'landing' && (
+          <LandingPage
+            onCourseSelect={handleCourseSelect}
+            onSettings={handleSettings}
+          />
+        )}
+        {displayedView === 'player' && selectedCourseId && (
+          <PlayerView
+            courseId={selectedCourseId}
+            onBack={handleBackToLibrary}
+          />
+        )}
+      </div>
       <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
       <Toaster />
     </>
