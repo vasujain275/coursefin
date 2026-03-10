@@ -8,7 +8,7 @@
 import { ThemeToggle } from '@/components/common/ThemeToggle';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import type { Lecture } from '@/types';
+import type { Lecture, LectureInfo } from '@/types';
 import { isVideoLecture } from '@/lib/utils';
 import { GetLectureForPlayer } from '@/wailsjs/go/main/App';
 import { EventsOff, EventsOn } from '@/wailsjs/runtime/runtime';
@@ -41,7 +41,7 @@ function VideoPlayerWrapper({
   onNavigateNext,
   onNavigatePrevious
 }: VideoPlayerWrapperProps) {
-  const [lectureInfo, setLectureInfo] = useState<any>(null);
+  const [lectureInfo, setLectureInfo] = useState<LectureInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | undefined>();
 

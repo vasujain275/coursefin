@@ -121,16 +121,16 @@ export interface SubtitleTrack {
 
 // Player-specific lecture info (from player.LectureInfo)
 export interface LectureInfo {
-  lectureId: number;
-  title: string;
-  videoUrl: string;
-  subtitleUrl: string;
-  duration: number;
-  resumeAt: number;
-  hasNext: boolean;
-  hasPrevious: boolean;
-  nextId?: number;
-  previousId?: number;
+  LectureID: number;
+  Title: string;
+  VideoURL: string;
+  SubtitleURL: string;
+  Duration: number;
+  ResumeAt: number;
+  HasNext: boolean;
+  HasPrevious: boolean;
+  NextID?: number;
+  PreviousID?: number;
 }
 
 // Video player state

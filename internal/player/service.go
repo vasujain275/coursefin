@@ -295,12 +295,18 @@ func (s *Service) GetLectureInfo(ctx context.Context, lectureID int64) (*Lecture
 	nextID, _ := s.getNextLectureID(ctx, *lecture)
 	prevID, _ := s.getPreviousLectureID(ctx, *lecture)
 
+	// Safely dereference duration (nullable int64)
+	var lectureDuration int64
+	if lecture.Duration != nil {
+		lectureDuration = *lecture.Duration
+	}
+
 	info := &LectureInfo{
 		LectureID:   lectureID,
 		Title:       lecture.Title,
 		VideoURL:    videoURL,
 		SubtitleURL: subtitleURL,
-		Duration:    *lecture.Duration,
+		Duration:    lectureDuration,
 		ResumeAt:    resumeAt,
 		HasNext:     nextID != nil,
 		HasPrevious: prevID != nil,
