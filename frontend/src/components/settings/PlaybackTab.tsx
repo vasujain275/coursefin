@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { useSettingsStore } from '@/stores/settingsStore';
+import { useShallow } from 'zustand/react/shallow';
 import { Play, FastForward, CheckCircle, Clock } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -19,7 +20,13 @@ export function PlaybackTab() {
     autoPlayNext,
     resumePrompt,
     updateSetting,
-  } = useSettingsStore();
+  } = useSettingsStore(useShallow(state => ({
+    defaultPlaybackSpeed: state.defaultPlaybackSpeed,
+    autoMarkCompleteThreshold: state.autoMarkCompleteThreshold,
+    autoPlayNext: state.autoPlayNext,
+    resumePrompt: state.resumePrompt,
+    updateSetting: state.updateSetting,
+  })));
 
   const handlePlaybackSpeedChange = async (value: number[]) => {
     try {

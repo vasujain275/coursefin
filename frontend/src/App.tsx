@@ -12,6 +12,7 @@ import { SettingsDialog } from '@/components/settings';
 import { Toaster } from '@/components/ui/sonner';
 import { applyTheme } from '@/lib/themeUtils';
 import { useSettingsStore } from '@/stores/settingsStore';
+import { useShallow } from 'zustand/react/shallow';
 import '@/style.css';
 import { Loader2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -20,7 +21,14 @@ import { useEffect, useState } from 'react';
 type View = 'onboarding' | 'landing' | 'player';
 
 function App() {
-  const { firstRun, isLoading, loadSettings, theme } = useSettingsStore();
+  const { firstRun, isLoading, loadSettings, theme } = useSettingsStore(
+    useShallow(state => ({
+      firstRun: state.firstRun,
+      isLoading: state.isLoading,
+      loadSettings: state.loadSettings,
+      theme: state.theme,
+    }))
+  );
   const [currentView, setCurrentView] = useState<View>('landing');
   const [selectedCourseId, setSelectedCourseId] = useState<number | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);

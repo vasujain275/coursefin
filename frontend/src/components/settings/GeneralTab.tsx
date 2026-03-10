@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { useSettingsStore } from '@/stores/settingsStore';
+import { useShallow } from 'zustand/react/shallow';
 import { SelectFolderDialog } from '@/wailsjs/go/main/App';
 import { FolderOpen, Monitor, Moon, Sun } from 'lucide-react';
 import { toast } from 'sonner';
@@ -21,7 +22,14 @@ export function GeneralTab() {
     setCoursesDirectory,
     setTheme,
     updateSetting,
-  } = useSettingsStore();
+  } = useSettingsStore(useShallow(state => ({
+    coursesDirectory: state.coursesDirectory,
+    theme: state.theme,
+    scanOnStartup: state.scanOnStartup,
+    setCoursesDirectory: state.setCoursesDirectory,
+    setTheme: state.setTheme,
+    updateSetting: state.updateSetting,
+  })));
 
   const handleBrowseDirectory = async () => {
     try {

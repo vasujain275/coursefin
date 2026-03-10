@@ -11,6 +11,7 @@ import { CourseGrid } from '@/components/courses/CourseGrid';
 import { Button } from '@/components/ui/button';
 import type { Course } from '@/types';
 import { useCourseStore } from '@/stores/courseStore';
+import { useShallow } from 'zustand/react/shallow';
 import { ScanLibrary } from '@/wailsjs/go/main/App';
 import { AlertCircle, Loader2, RefreshCw } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
@@ -23,7 +24,15 @@ interface LandingPageProps {
 }
 
 export function LandingPage({ onCourseSelect, onSettings }: LandingPageProps) {
-  const { courses, isLoading, error, loadCourses, refreshCourses } = useCourseStore();
+  const { courses, isLoading, error, loadCourses, refreshCourses } = useCourseStore(
+    useShallow(state => ({
+      courses: state.courses,
+      isLoading: state.isLoading,
+      error: state.error,
+      loadCourses: state.loadCourses,
+      refreshCourses: state.refreshCourses,
+    }))
+  );
   const [searchQuery, setSearchQuery] = useState('');
   const [isRefreshing, setIsRefreshing] = useState(false);
 

@@ -12,6 +12,7 @@ import { isVideoLecture } from '@/lib/utils';
 import { GetLectureForPlayer } from '@/wailsjs/go/main/App';
 import { EventsOff, EventsOn } from '@/wailsjs/runtime/runtime';
 import { usePlayerStore } from '@/stores/playerStore';
+import { useShallow } from 'zustand/react/shallow';
 import { AlertCircle, ArrowLeft, FileText, Loader2, PanelRightClose, PanelRightOpen } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { HtmlLectureViewer } from './HtmlLectureViewer';
@@ -109,7 +110,19 @@ export function PlayerView({ courseId, initialLectureId, onBack }: PlayerViewPro
     hasNext,
     hasPrevious,
     reset,
-  } = usePlayerStore();
+  } = usePlayerStore(useShallow(state => ({
+    course: state.course,
+    currentLecture: state.currentLecture,
+    isLoading: state.isLoading,
+    error: state.error,
+    loadCourse: state.loadCourse,
+    setCurrentLecture: state.setCurrentLecture,
+    navigateNext: state.navigateNext,
+    navigatePrevious: state.navigatePrevious,
+    hasNext: state.hasNext,
+    hasPrevious: state.hasPrevious,
+    reset: state.reset,
+  })));
 
   const [showSidebar, setShowSidebar] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
