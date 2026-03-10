@@ -33,8 +33,8 @@ const PLYR_OPTIONS: PlyrProps['options'] = {
     'volume',
     'captions',
     'settings',
-    'fullscreen',
   ],
+  fullscreen: { enabled: false, fallback: false, iosNative: false },
   // We manage global keyboard shortcuts ourselves below so that navigation
   // keys (N/P) don't get swallowed by Plyr.  Plyr still handles shortcuts
   // when the player itself is focused.
