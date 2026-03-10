@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/accordion';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { cn } from '@/lib/utils';
+import { cn, formatDuration } from '@/lib/utils';
 import type { Lecture, Section } from '@/types';
 import { Check, File, FileText, PlayCircle, X } from 'lucide-react';
 
@@ -53,15 +53,6 @@ export function LectureList({
       return <PlayCircle className={cls} />;
     }
     return <File className={cls} />;
-  };
-
-  const formatDuration = (seconds: number): string => {
-    if (!seconds || seconds <= 0) return '';
-    const h = Math.floor(seconds / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-    const s = Math.floor(seconds % 60);
-    if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-    return `${m}:${String(s).padStart(2, '0')}`;
   };
 
   const totalLectures = sections.reduce((acc, s) => acc + s.lectures.length, 0);

@@ -6,6 +6,7 @@ import {
     ToggleWindowFullscreen,
 } from '@/wailsjs/go/main/App';
 import type { player } from '@/wailsjs/go/models';
+import { formatDuration } from '@/lib/utils';
 import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import PlyrComponent, { type APITypes, type PlyrProps } from 'plyr-react';
@@ -361,16 +362,4 @@ export function VideoPlayer({
       </div>
     </div>
   );
-}
-
-// Helper function to format duration
-function formatDuration(seconds: number): string {
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  const secs = Math.floor(seconds % 60);
-
-  if (hours > 0) {
-    return `${hours}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-  }
-  return `${minutes}:${String(secs).padStart(2, '0')}`;
 }

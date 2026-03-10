@@ -8,6 +8,7 @@
 import { ThemeToggle } from '@/components/common/ThemeToggle';
 import { Button } from '@/components/ui/button';
 import type { Lecture } from '@/types';
+import { isVideoLecture } from '@/lib/utils';
 import { GetLectureForPlayer, IsWindowFullscreen } from '@/wailsjs/go/main/App';
 import { usePlayerStore } from '@/stores/playerStore';
 import { AlertCircle, ArrowLeft, FileText, Loader2, PanelRightClose, PanelRightOpen } from 'lucide-react';
@@ -138,14 +139,6 @@ export function PlayerView({ courseId, initialLectureId, onBack }: PlayerViewPro
   const handleLectureSelect = (lecture: Lecture) => {
     setCurrentLecture(lecture);
   };
-
-  const isVideoLecture = (lecture: Lecture) => {
-    if (lecture.lectureType === 'text') return false;
-    if (lecture.lectureType === 'video') return true;
-    const ext = lecture.filePath?.toLowerCase() ?? '';
-    return !ext.endsWith('.html') && !ext.endsWith('.htm');
-  };
-
 
   if (isLoading) {
     return (
