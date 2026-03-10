@@ -365,8 +365,10 @@ func (a *App) SelectFolderDialog(title string) (string, error) {
 func (a *App) ToggleWindowFullscreen() {
 	if runtime.WindowIsFullscreen(a.ctx) {
 		runtime.WindowUnfullscreen(a.ctx)
+		runtime.EventsEmit(a.ctx, "window:fullscreen", false)
 	} else {
 		runtime.WindowFullscreen(a.ctx)
+		runtime.EventsEmit(a.ctx, "window:fullscreen", true)
 	}
 }
 

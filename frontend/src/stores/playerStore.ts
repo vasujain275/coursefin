@@ -5,7 +5,8 @@
 // Pattern: Zustand store with Wails backend integration
 // ============================================================================
 
-import type { Course, Lecture, Section } from '@/types';
+import type { Course, Lecture, Section, SectionWithLectures } from '@/types';
+import type { course, sqlc } from '@/wailsjs/go/models';
 import { create } from 'zustand';
 
 interface PlayerState {

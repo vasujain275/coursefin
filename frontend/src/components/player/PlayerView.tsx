@@ -9,7 +9,8 @@ import { ThemeToggle } from '@/components/common/ThemeToggle';
 import { Button } from '@/components/ui/button';
 import type { Lecture } from '@/types';
 import { isVideoLecture } from '@/lib/utils';
-import { GetLectureForPlayer, IsWindowFullscreen } from '@/wailsjs/go/main/App';
+import { GetLectureForPlayer } from '@/wailsjs/go/main/App';
+import { EventsOff, EventsOn } from '@/wailsjs/runtime/runtime';
 import { usePlayerStore } from '@/stores/playerStore';
 import { AlertCircle, ArrowLeft, FileText, Loader2, PanelRightClose, PanelRightOpen } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -114,18 +115,9 @@ export function PlayerView({ courseId, initialLectureId, onBack }: PlayerViewPro
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   useEffect(() => {
-    const checkFullscreen = async () => {
-      const fullscreen = await IsWindowFullscreen();
-      setIsFullscreen(fullscreen);
-    };
+    EventsOn('window:fullscreen', (isFs: boolean) => setIsFullscreen(isFs));
 
-    void checkFullscreen();
-
-    const interval = setInterval(() => {
-      void checkFullscreen();
-    }, 500);
-
-    return () => clearInterval(interval);
+    return () => EventsOff('window:fullscreen');
   }, []);
 
   useEffect(() => {

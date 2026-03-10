@@ -10,6 +10,7 @@ import { OnboardingFlow } from '@/components/onboarding/OnboardingFlow';
 import { PlayerView } from '@/components/player/PlayerView';
 import { SettingsDialog } from '@/components/settings';
 import { Toaster } from '@/components/ui/sonner';
+import { applyTheme } from '@/lib/themeUtils';
 import { useSettingsStore } from '@/stores/settingsStore';
 import '@/style.css';
 import { Loader2 } from 'lucide-react';
@@ -31,15 +32,7 @@ function App() {
 
   // Apply theme when it changes
   useEffect(() => {
-    if (theme === 'dark') {
-      document.documentElement.classList.add('dark');
-    } else if (theme === 'light') {
-      document.documentElement.classList.remove('dark');
-    } else {
-      // System theme
-      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      document.documentElement.classList.toggle('dark', prefersDark);
-    }
+    applyTheme(theme);
   }, [theme]);
 
   // Determine initial view based on firstRun
