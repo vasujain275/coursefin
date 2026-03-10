@@ -3,9 +3,11 @@ package player
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"net/url"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -153,9 +155,16 @@ func (s *Service) UpdatePlaybackProgress(ctx context.Context, lectureID int64, p
 		return fmt.Errorf("failed to get lecture: %w", err)
 	}
 
-	// Calculate if lecture should be marked as complete
-	// Default threshold is 90% (can be made configurable later)
+	// Load completion threshold from settings DB, fall back to 0.90 if missing or invalid
 	completionThreshold := 0.90
+	if threshStr, err := s.db.Queries().GetSettingValue(ctx, "auto_mark_complete_threshold"); err == nil {
+		if parsed, parseErr := strconv.ParseFloat(threshStr, 64); parseErr == nil {
+			completionThreshold = parsed
+		}
+	} else if err != sql.ErrNoRows {
+		// Log unexpected DB errors but continue with default
+		fmt.Printf("WARNING: failed to read completion_threshold setting: %v\n", err)
+	}
 	completed := (position / duration) >= completionThreshold
 
 	// Prepare progress data

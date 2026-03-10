@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"strings"
@@ -40,7 +41,7 @@ func (a *App) startup(ctx context.Context) {
 	dataDir, err := database.GetAppDataDir()
 	if err != nil {
 		errMsg := fmt.Sprintf("Failed to get app data directory: %v", err)
-		fmt.Println(errMsg)
+		slog.Error("failed to get app data directory", "error", err)
 		runtime.MessageDialog(ctx, runtime.MessageDialogOptions{
 			Type:    runtime.ErrorDialog,
 			Title:   "Database Initialization Error",
@@ -49,12 +50,12 @@ func (a *App) startup(ctx context.Context) {
 		return
 	}
 
-	fmt.Printf("App data directory: %s\n", dataDir)
+	slog.Info("app data directory", "path", dataDir)
 
 	db, err := database.NewDB(dataDir)
 	if err != nil {
 		errMsg := fmt.Sprintf("Failed to initialize database: %v\n\nData directory: %s", err, dataDir)
-		fmt.Println(errMsg)
+		slog.Error("failed to initialize database", "error", err, "dataDir", dataDir)
 		runtime.MessageDialog(ctx, runtime.MessageDialogOptions{
 			Type:    runtime.ErrorDialog,
 			Title:   "Database Initialization Error",
@@ -63,15 +64,15 @@ func (a *App) startup(ctx context.Context) {
 		return
 	}
 	a.db = db
-	fmt.Printf("Database initialized at: %s\n", db.DBPath())
+	slog.Info("database initialized", "path", db.DBPath())
 
 	// Get courses directory from settings
 	coursesDir, err := a.db.Queries().GetCoursesDirectory(ctx)
 	if err != nil || coursesDir == "" {
 		coursesDir = dataDir // Fallback to data directory
-		fmt.Printf("Using default courses directory: %s\n", coursesDir)
+		slog.Info("using default courses directory", "path", coursesDir)
 	} else {
-		fmt.Printf("Courses directory: %s\n", coursesDir)
+		slog.Info("courses directory", "path", coursesDir)
 	}
 
 	// Initialize video server for serving videos via localhost HTTP
@@ -79,38 +80,38 @@ func (a *App) startup(ctx context.Context) {
 	// video elements through the AssetHandler
 	videoServer, err := player.NewVideoServer()
 	if err != nil {
-		fmt.Printf("WARNING: Failed to start video server: %v\n", err)
+		slog.Warn("failed to start video server", "error", err)
 	} else {
 		a.videoServer = videoServer
-		fmt.Printf("Video server initialized on port %d\n", videoServer.GetPort())
+		slog.Info("video server initialized", "port", videoServer.GetPort())
 	}
 
 	// Initialize player service with video server
 	a.playerSvc = player.NewService(db, coursesDir, a.videoServer)
-	fmt.Println("Player service initialized")
+	slog.Info("player service initialized")
 
 	// Initialize settings service
 	a.settingsSvc = settings.NewService(db.Queries())
-	fmt.Println("Settings service initialized")
+	slog.Info("settings service initialized")
 
 	// Initialize course service
-	a.courseSvc = course.NewService(db.Queries())
-	fmt.Println("Course service initialized")
+	a.courseSvc = course.NewService(a.db)
+	slog.Info("course service initialized")
 }
 
 // shutdown is called when the app is closing
 func (a *App) shutdown(ctx context.Context) {
 	if a.videoServer != nil {
-		fmt.Println("Stopping video server...")
+		slog.Info("stopping video server")
 		a.videoServer.Stop()
 	}
 
 	if a.db != nil {
-		fmt.Println("Checkpointing WAL before close...")
+		slog.Info("checkpointing WAL before close")
 		if _, err := a.db.Conn().Exec("PRAGMA wal_checkpoint(TRUNCATE)"); err != nil {
-			fmt.Printf("WAL checkpoint failed: %v\n", err)
+			slog.Error("WAL checkpoint failed", "error", err)
 		}
-		fmt.Println("Closing database connection...")
+		slog.Info("closing database connection")
 		a.db.Close()
 	}
 }
@@ -124,26 +125,20 @@ func (a *App) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // =====================================
 
 // GetAllCourses returns all courses from the database
-func (a *App) GetAllCourses() ([]interface{}, error) {
+func (a *App) GetAllCourses() ([]*sqlc.ListCoursesWithProgressRow, error) {
 	if a.db == nil {
 		return nil, fmt.Errorf("database not initialized")
 	}
 
 	courses, err := a.db.Queries().ListCoursesWithProgress(a.ctx, sqlc.ListCoursesWithProgressParams{
-		Limit:  100, // Default to 100 courses
+		Limit:  10000,
 		Offset: 0,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to list courses: %w", err)
 	}
 
-	// Convert to generic interface slice for frontend
-	result := make([]interface{}, len(courses))
-	for i, course := range courses {
-		result[i] = course
-	}
-
-	return result, nil
+	return courses, nil
 }
 
 // GetDatabasePath returns the path to the database file
