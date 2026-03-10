@@ -53,7 +53,7 @@ export interface Section {
 }
 
 // Section with all its lectures (from GetCourseWithSections)
-export interface SectionWithLectures extends Section {
+export interface SectionWithLectures extends Omit<Section, 'lectures'> {
   lectures: LectureWithProgress[];
 }
 
@@ -75,8 +75,8 @@ export interface Course {
   progressPercent?: number;
   hasProgress?: boolean;
   lastWatchedAt?: string;
-  // Optional nested sections (populated from GetCourseWithSections)
-  sections?: SectionWithLectures[];
+  // Optional nested sections with lectures
+  sections?: (Section | SectionWithLectures)[];
 }
 
 // Course with progress metrics (from ListCoursesWithProgress)
