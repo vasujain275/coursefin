@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log/slog"
 	"net/url"
 	"path/filepath"
 	"strconv"
@@ -163,7 +164,7 @@ func (s *Service) UpdatePlaybackProgress(ctx context.Context, lectureID int64, p
 		}
 	} else if err != sql.ErrNoRows {
 		// Log unexpected DB errors but continue with default
-		fmt.Printf("WARNING: failed to read completion_threshold setting: %v\n", err)
+		slog.Warn("failed to read completion_threshold setting", "error", err)
 	}
 	completed := (position / duration) >= completionThreshold
 

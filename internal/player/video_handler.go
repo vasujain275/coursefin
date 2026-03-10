@@ -4,6 +4,7 @@ package player
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net"
 	"net/http"
 	"net/url"
@@ -60,7 +61,7 @@ func NewVideoServer() (*VideoServer, error) {
 	// Start server in background
 	go func() {
 		if err := vs.server.Serve(listener); err != nil && err != http.ErrServerClosed {
-			fmt.Printf("[VideoServer] Server error: %v\n", err)
+			slog.Error("video server error", "error", err)
 		}
 	}()
 

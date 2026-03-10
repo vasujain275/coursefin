@@ -220,18 +220,17 @@ func (s *Service) ImportCourse(ctx context.Context, coursePath string, coursesDi
 						// Check if it's a UNIQUE constraint error (duplicate subtitle)
 						if strings.Contains(err.Error(), "UNIQUE constraint failed") ||
 							strings.Contains(err.Error(), "constraint failed") {
-							fmt.Printf("[Import] Warning: Duplicate subtitle skipped - %s (%s, %s)\n",
-								filepath.Base(subtitlePath), language, format)
+							slog.Warn("import: duplicate subtitle skipped",
+								"file", filepath.Base(subtitlePath), "language", language, "format", format)
 							continue
 						}
 						// For other errors, log warning but don't fail the entire import
-						fmt.Printf("[Import] Warning: Failed to create subtitle %s: %v\n",
-							subtitlePath, err)
+						slog.Warn("import: failed to create subtitle", "path", subtitlePath, "error", err)
 						continue
 					}
 					if subtitle != nil {
-						fmt.Printf("[Import] Added subtitle: %s (%s, %s)\n",
-							filepath.Base(subtitlePath), language, format)
+						slog.Info("import: added subtitle",
+							"file", filepath.Base(subtitlePath), "language", language, "format", format)
 					}
 				}
 			}
@@ -283,7 +282,7 @@ func (s *Service) syncExistingCourse(
 			if err != nil {
 				return nil, fmt.Errorf("failed to create section %s: %w", sectionMeta.Title, err)
 			}
-			fmt.Printf("[Sync] Created new section: %s\n", sectionMeta.Title)
+			slog.Info("sync: created new section", "title", sectionMeta.Title)
 		}
 
 		// Check each lecture
@@ -325,7 +324,7 @@ func (s *Service) syncExistingCourse(
 				return nil, fmt.Errorf("failed to create lecture %s: %w", lectureMeta.Title, err)
 			}
 
-			fmt.Printf("[Sync] Added lecture: %s (type: %s)\n", lectureMeta.Title, lectureMeta.LectureType)
+			slog.Info("sync: added lecture", "title", lectureMeta.Title, "type", lectureMeta.LectureType)
 			addedLectures++
 
 			// Import subtitles for new lectures
@@ -342,18 +341,17 @@ func (s *Service) syncExistingCourse(
 					// Check if it's a UNIQUE constraint error (duplicate subtitle)
 					if strings.Contains(err.Error(), "UNIQUE constraint failed") ||
 						strings.Contains(err.Error(), "constraint failed") {
-						fmt.Printf("[Sync] Warning: Duplicate subtitle skipped - %s (%s, %s)\n",
-							filepath.Base(subtitlePath), language, format)
+						slog.Warn("sync: duplicate subtitle skipped",
+							"file", filepath.Base(subtitlePath), "language", language, "format", format)
 						continue
 					}
 					// For other errors, log warning but don't fail
-					fmt.Printf("[Sync] Warning: Failed to create subtitle %s: %v\n",
-						subtitlePath, err)
+					slog.Warn("sync: failed to create subtitle", "path", subtitlePath, "error", err)
 					continue
 				}
 				if subtitle != nil {
-					fmt.Printf("[Sync] Added subtitle: %s (%s, %s)\n",
-						filepath.Base(subtitlePath), language, format)
+					slog.Info("sync: added subtitle",
+						"file", filepath.Base(subtitlePath), "language", language, "format", format)
 				}
 			}
 		}
@@ -374,7 +372,7 @@ func (s *Service) syncExistingCourse(
 		ID:            course.ID,
 	})
 
-	fmt.Printf("[Sync] Course sync complete: %s (%d new lectures added)\n", course.Title, addedLectures)
+	slog.Info("sync: course sync complete", "title", course.Title, "newLectures", addedLectures)
 
 	return &ImportCourseResult{
 		CourseID:      course.ID,
