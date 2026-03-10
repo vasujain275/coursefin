@@ -18,13 +18,12 @@ import (
 
 // App struct
 type App struct {
-	ctx          context.Context
-	db           *database.DB
-	playerSvc    *player.Service
-	videoHandler *player.VideoHandler
-	videoServer  *player.VideoServer
-	settingsSvc  *settings.Service
-	courseSvc    *course.Service
+	ctx         context.Context
+	db          *database.DB
+	playerSvc   *player.Service
+	videoServer *player.VideoServer
+	settingsSvc *settings.Service
+	courseSvc   *course.Service
 }
 
 // NewApp creates a new App application struct
@@ -75,10 +74,6 @@ func (a *App) startup(ctx context.Context) {
 		fmt.Printf("Courses directory: %s\n", coursesDir)
 	}
 
-	// Initialize video handler (no longer needs coursesDir - paths are now absolute)
-	a.videoHandler = player.NewVideoHandler()
-	fmt.Println("Video handler initialized")
-
 	// Initialize video server for serving videos via localhost HTTP
 	// This is needed because WebKitGTK in Wails doesn't properly handle
 	// video elements through the AssetHandler
@@ -120,23 +115,7 @@ func (a *App) shutdown(ctx context.Context) {
 	}
 }
 
-// ServeHTTP implements http.Handler interface for custom asset serving
-// Routes video and subtitle requests to the video handler
 func (a *App) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	path := r.URL.Path
-	fmt.Printf("[ServeHTTP] Received request: %s\n", path)
-
-	// Check if this is a video or subtitle request
-	if strings.HasPrefix(path, "/videos/") || strings.HasPrefix(path, "/subtitles/") {
-		fmt.Printf("[ServeHTTP] Routing to video handler: %s\n", path)
-		if a.videoHandler != nil {
-			a.videoHandler.ServeHTTP(w, r)
-			return
-		}
-		fmt.Println("[ServeHTTP] Video handler is nil!")
-	}
-
-	// For all other paths, return 404 (Wails will handle frontend assets separately)
 	http.NotFound(w, r)
 }
 
