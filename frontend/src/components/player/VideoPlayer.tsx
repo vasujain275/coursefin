@@ -211,7 +211,6 @@ export function VideoPlayer({
       window.clearInterval(pollId);
 
       void saveProgress();
-      void saveProgress();
 
       if (progressIntervalRef.current) {
         clearInterval(progressIntervalRef.current);
