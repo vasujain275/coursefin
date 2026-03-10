@@ -29,12 +29,12 @@ export function CourseCard({ course, onClick }: CourseCardProps) {
   // Prefer sections-derived counts when sections are loaded (PlayerView),
   // otherwise use the aggregate progress stats from GetAllCourses.
   const totalLectures = course.sections
-    ? course.sections.reduce((acc, section) => acc + section.lectures.length, 0)
+    ? course.sections.reduce((acc, section) => acc + (section.lectures?.length ?? 0), 0)
     : course.totalLectures || 0;
 
   const completedLectures = course.sections
     ? course.sections.reduce(
-        (acc, section) => acc + section.lectures.filter(l => l.isCompleted).length,
+        (acc, section) => acc + (section.lectures?.filter(l => l.isCompleted).length ?? 0),
         0
       )
     : course.completedLectures ?? 0;
@@ -79,11 +79,11 @@ export function CourseCard({ course, onClick }: CourseCardProps) {
         </div>
 
         {/* Duration Badge */}
-        {course.totalDuration > 0 && (
+        {(course.totalDuration ?? 0) > 0 && (
           <div className="absolute top-3 right-3">
             <Badge variant="secondary" className="bg-background/80 backdrop-blur-sm border-border/50 gap-1 mono text-xs">
               <Clock className="w-3 h-3" />
-              {formatDuration(course.totalDuration)}
+              {formatDuration(course.totalDuration ?? 0)}
             </Badge>
           </div>
         )}

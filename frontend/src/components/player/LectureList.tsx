@@ -17,11 +17,11 @@ import {
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn, formatDuration } from '@/lib/utils';
-import type { Lecture, Section } from '@/types';
+import type { Lecture, SectionWithLectures } from '@/types';
 import { Check, File, FileText, PlayCircle, X } from 'lucide-react';
 
 interface LectureListProps {
-  sections: Section[];
+  sections: SectionWithLectures[];
   currentLectureId?: number;
   onLectureSelect: (lecture: Lecture) => void;
   onClose?: () => void;
@@ -169,9 +169,9 @@ export function LectureList({
                             {lecture.lectureType === 'text' && (
                               <span className="text-[10px] text-muted-foreground">Article</span>
                             )}
-                            {lecture.duration > 0 && (
+                            {(lecture.duration ?? 0) > 0 && (
                               <span className="text-[10px] text-muted-foreground font-mono">
-                                {formatDuration(lecture.duration)}
+                                {formatDuration(lecture.duration ?? 0)}
                               </span>
                             )}
                             {lecture.isCompleted && (
