@@ -78,7 +78,7 @@ export function VideoPlayer({
   useResumePosition(lectureInfo.LectureID, getVideo);
   useProgressSaver(lectureInfo.LectureID, getVideo);
   usePlayerKeyboardShortcuts(
-    lectureInfo,
+    { hasNext: lectureInfo.HasNext, hasPrevious: lectureInfo.HasPrevious },
     getVideo,
     onNavigateNext,
     onNavigatePrevious,

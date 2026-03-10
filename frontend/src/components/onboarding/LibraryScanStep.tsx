@@ -28,7 +28,7 @@ export function LibraryScanStep({ onComplete, onBack }: LibraryScanStepProps) {
   // Auto-kick off the scan as soon as we land on this step
   useEffect(() => {
     void runScan();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- runScan intentionally excluded; this effect should only run once on mount
   }, []);
 
   const runScan = async () => {

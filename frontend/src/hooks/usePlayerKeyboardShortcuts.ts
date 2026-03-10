@@ -1,15 +1,30 @@
 import { useEffect } from 'react';
 import { ToggleWindowFullscreen } from '@/wailsjs/go/main/App';
-import type { player } from '@/wailsjs/go/models';
+
+interface NavigationState {
+  hasNext: boolean;
+  hasPrevious: boolean;
+}
+
+interface PlayerKeyboardShortcutOptions {
+  enableMediaShortcuts?: boolean;
+}
 
 export function usePlayerKeyboardShortcuts(
-  lectureInfo: player.LectureInfo,
+  navigationState: NavigationState,
   getVideo: () => HTMLVideoElement | null,
   onNavigateNext?: () => void,
   onNavigatePrevious?: () => void,
+  options?: PlayerKeyboardShortcutOptions,
 ) {
+  const hasNext = navigationState.hasNext;
+  const hasPrevious = navigationState.hasPrevious;
+  const enableMediaShortcuts = options?.enableMediaShortcuts ?? true;
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (document.querySelector('[role="dialog"]')) return;
+
       if (
         e.target instanceof HTMLInputElement ||
         e.target instanceof HTMLTextAreaElement
@@ -21,6 +36,7 @@ export function usePlayerKeyboardShortcuts(
 
       switch (e.key) {
         case ' ': {
+          if (!enableMediaShortcuts) break;
           e.preventDefault();
           if (video) {
             if (video.paused) void video.play();
@@ -29,45 +45,51 @@ export function usePlayerKeyboardShortcuts(
           break;
         }
         case 'ArrowLeft': {
+          if (!enableMediaShortcuts) break;
           e.preventDefault();
           if (video) video.currentTime = Math.max(0, video.currentTime - 10);
           break;
         }
         case 'ArrowRight': {
+          if (!enableMediaShortcuts) break;
           e.preventDefault();
           if (video) video.currentTime = Math.min(video.duration, video.currentTime + 10);
           break;
         }
         case 'ArrowUp': {
+          if (!enableMediaShortcuts) break;
           e.preventDefault();
           if (video) video.volume = Math.min(1, video.volume + 0.1);
           break;
         }
         case 'ArrowDown': {
+          if (!enableMediaShortcuts) break;
           e.preventDefault();
           if (video) video.volume = Math.max(0, video.volume - 0.1);
           break;
         }
         case 'f':
         case 'F': {
+          if (!enableMediaShortcuts) break;
           e.preventDefault();
           void ToggleWindowFullscreen();
           break;
         }
         case 'm':
         case 'M': {
+          if (!enableMediaShortcuts) break;
           e.preventDefault();
           if (video) video.muted = !video.muted;
           break;
         }
         case 'n':
         case 'N': {
-          if (lectureInfo.HasNext && onNavigateNext) onNavigateNext();
+          if (hasNext && onNavigateNext) onNavigateNext();
           break;
         }
         case 'p':
         case 'P': {
-          if (lectureInfo.HasPrevious && onNavigatePrevious) onNavigatePrevious();
+          if (hasPrevious && onNavigatePrevious) onNavigatePrevious();
           break;
         }
       }
@@ -75,5 +97,5 @@ export function usePlayerKeyboardShortcuts(
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [lectureInfo, getVideo, onNavigateNext, onNavigatePrevious]);
+  }, [enableMediaShortcuts, getVideo, hasNext, hasPrevious, onNavigateNext, onNavigatePrevious]);
 }
